@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NARMADA – Livelihood Mapping & Skilling Guidance</title><link rel="stylesheet" href="/static/style.css"></head><body>
+<div class="tri"><i></i><i></i><i></i></div>
+<div class="topbar"><a href="#main">Skip to main content</a><span>Text size: <button onclick="fs(-1)">A-</button><button onclick="fs(0)">A</button><button onclick="fs(1)">A+</button></span></div>
+<header><div class="brand"><div class="mark">N</div><div><h1>NARMADA</h1><p>Native-language Aptitude Retrieval &amp; Mentoring Architecture</p></div></div>
+<nav><a href="#main">Home</a><a href="#assist">Voice Assistant</a><a href="#how">How it works</a><a href="#help">Help</a></nav></header>
+<div class="ticker">Free guidance. Speak in your own language. No forms, no typing required.</div>
+<main id="main"><section class="hero"><h2>Right Voice. Right Skill. Right Livelihood.</h2><p>Tell us about your daily work. We will find the certified (NSQF) training that fits what you already know.</p>
+<a class="btn" href="#assist">Start voice assistance</a></section>
+<section id="assist" class="grid"><div class="card"><h3>Talk to the assistant</h3>
+<label>Language <select id="lang">{% for k,v in langs.items() %}<option value="{{k}}">{{v}}</option>{% endfor %}</select></label>
+<button class="btn" id="begin">Begin conversation</button>
+<div id="log" aria-live="polite"></div>
+<div class="row"><input id="msg" placeholder="Type your answer here" disabled><button class="btn" id="send" disabled>Send</button><button class="mic" id="mic" disabled aria-label="Speak">&#127908;</button></div>
+<button class="btn alt" id="rec" disabled>Get my recommendation</button></div>
+<aside><div class="card"><h3>Your work profile</h3><dl id="prof"><dt>Activities</dt><dd>-</dd><dt>Tools</dt><dd>-</dd><dt>Experience</dt><dd>-</dd></dl></div>
+<div class="card" id="result" hidden><h3>Recommended training</h3><div id="rbody"></div></div></aside></section>
+<section id="how" class="steps"><div class="card"><h3>1. Speak</h3><p>Describe a normal day in your language.</p></div><div class="card"><h3>2. Understand</h3><p>We note your activities, tools and experience.</p></div><div class="card"><h3>3. Match</h3><p>We match you to an NSQF Qualification Pack and check eligibility.</p></div></section></main>
+<footer id="help"><p>Prototype for demonstration. This is not an official Government of India website. Voice data is used only to generate your recommendation.</p><p id="st"></p></footer>
+<script src="/static/app.js"></script></body></html>

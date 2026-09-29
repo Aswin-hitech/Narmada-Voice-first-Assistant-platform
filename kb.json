@@ -1,0 +1,9 @@
+[
+{"kind":"qp","code":"SAMPLE-APP-01","title":"Stitching Machine Operator (Tailoring)","sector":"Apparel","level":3,"text":"Operates sewing machines, stitches garments, alters clothes, uses tape, scissors, chalk. Suits people who stitch, tailor, embroider or repair clothes at home."},
+{"kind":"qp","code":"SAMPLE-AGR-01","title":"Dairy Farmer / Entrepreneur","sector":"Agriculture","level":4,"text":"Rearing cattle, milking, feed and fodder management, animal health basics, selling milk to cooperatives. Suits people who keep cows or buffaloes."},
+{"kind":"qp","code":"SAMPLE-AGR-02","title":"Organic Grower","sector":"Agriculture","level":4,"text":"Crop planning, composting, pest management without chemicals, irrigation, harvesting and marketing. Suits farmers and kitchen-garden growers."},
+{"kind":"qp","code":"SAMPLE-ELE-01","title":"Electrician - Domestic","sector":"Electronics","level":4,"text":"Wiring, fitting switches and fans, repairing appliances, using testers and pliers. Suits people who repair electrical items."},
+{"kind":"qp","code":"SAMPLE-FOOD-01","title":"Food Processing Assistant","sector":"Food Processing","level":3,"text":"Cooking in bulk, pickles, snacks, packaging, hygiene, selling at markets. Suits people who cook and sell food."},
+{"kind":"qp","code":"SAMPLE-RET-01","title":"Retail Sales Associate","sector":"Retail","level":4,"text":"Selling goods, handling customers, cash and stock. Suits people who run or help in shops and stalls."},
+{"kind":"rule","code":"RULE-SAMPLE-01","title":"Eligibility (sample text)","sector":"","level":0,"text":"Sample rule: applicant must belong to a Scheduled Category and be of working age (15 and above). Replace with verified scheme guidelines."}
+]
