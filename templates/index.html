@@ -1,20 +1,782 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NARMADA – Livelihood Mapping & Skilling Guidance</title><link rel="stylesheet" href="/static/style.css"></head><body>
-<div class="tri"><i></i><i></i><i></i></div>
-<div class="topbar"><a href="#main">Skip to main content</a><span>Text size: <button onclick="fs(-1)">A-</button><button onclick="fs(0)">A</button><button onclick="fs(1)">A+</button></span></div>
-<header><div class="brand"><div class="mark">N</div><div><h1>NARMADA</h1><p>Native-language Aptitude Retrieval &amp; Mentoring Architecture</p></div></div>
-<nav><a href="#main">Home</a><a href="#assist">Voice Assistant</a><a href="#how">How it works</a><a href="#help">Help</a></nav></header>
-<div class="ticker">Free guidance. Speak in your own language. No forms, no typing required.</div>
-<main id="main"><section class="hero"><h2>Right Voice. Right Skill. Right Livelihood.</h2><p>Tell us about your daily work. We will find the certified (NSQF) training that fits what you already know.</p>
-<a class="btn" href="#assist">Start voice assistance</a></section>
-<section id="assist" class="grid"><div class="card"><h3>Talk to the assistant</h3>
-<label>Language <select id="lang">{% for k,v in langs.items() %}<option value="{{k}}">{{v}}</option>{% endfor %}</select></label>
-<button class="btn" id="begin">Begin conversation</button>
-<div id="log" aria-live="polite"></div>
-<div class="row"><input id="msg" placeholder="Type your answer here" disabled><button class="btn" id="send" disabled>Send</button><button class="mic" id="mic" disabled aria-label="Speak">&#127908;</button></div>
-<button class="btn alt" id="rec" disabled>Get my recommendation</button></div>
-<aside><div class="card"><h3>Your work profile</h3><dl id="prof"><dt>Activities</dt><dd>-</dd><dt>Tools</dt><dd>-</dd><dt>Experience</dt><dd>-</dd></dl></div>
-<div class="card" id="result" hidden><h3>Recommended training</h3><div id="rbody"></div></div></aside></section>
-<section id="how" class="steps"><div class="card"><h3>1. Speak</h3><p>Describe a normal day in your language.</p></div><div class="card"><h3>2. Understand</h3><p>We note your activities, tools and experience.</p></div><div class="card"><h3>3. Match</h3><p>We match you to an NSQF Qualification Pack and check eligibility.</p></div></section></main>
-<footer id="help"><p>Prototype for demonstration. This is not an official Government of India website. Voice data is used only to generate your recommendation.</p><p id="st"></p></footer>
-<script src="/static/app.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NARMADA – AI Voice Assistant for Livelihood Mapping & NSQF Skilling (PM-AJAY)</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- QRCode.js for generating verifiable Skilling Passport QR codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Skip Link for Accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- National Flag Tricolor Bar -->
+    <div class="tricolor-strip">
+        <div class="strip saffron"></div>
+        <div class="strip white">
+            <span class="chakra-icon">☸</span>
+        </div>
+        <div class="strip green"></div>
+    </div>
+
+    <!-- Government of India / Scheme Top Bar -->
+    <aside class="gov-topbar" aria-label="Official Government Header">
+        <div class="gov-container">
+            <div class="gov-emblem-text">
+                <span class="gov-flag-icon">🇮🇳</span>
+                <span>Government of India • Ministry of Social Justice &amp; Empowerment</span>
+                <span class="pipe">|</span>
+                <span class="scheme-badge">PM-AJAY GIA Component (SIH26097)</span>
+            </div>
+            <div class="gov-controls">
+                <span class="accessibility-group">
+                    <span class="control-label">Text Size:</span>
+                    <button type="button" class="btn-text-size" onclick="adjustFontSize(-1)" title="Decrease Text Size" aria-label="Decrease Text Size">A-</button>
+                    <button type="button" class="btn-text-size active" onclick="adjustFontSize(0)" title="Default Text Size" aria-label="Reset Text Size">A</button>
+                    <button type="button" class="btn-text-size" onclick="adjustFontSize(1)" title="Increase Text Size" aria-label="Increase Text Size">A+</button>
+                </span>
+                <button type="button" class="btn-contrast" id="contrast-toggle" onclick="toggleHighContrast()" title="Toggle High Contrast Mode">
+                    <span class="contrast-icon">◐</span> High Contrast
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Header & Branding -->
+    <header class="main-header">
+        <div class="header-container">
+            <div class="brand-block">
+                <div class="brand-emblem" aria-hidden="true">
+                    <div class="emblem-inner">N</div>
+                </div>
+                <div class="brand-titles">
+                    <h1 class="brand-title">NARMADA</h1>
+                    <p class="brand-tagline">Native-language Aptitude Recognition &amp; Mentoring Architecture Driving Advancement</p>
+                    <div class="brand-motto">“Right Voice. Right Skill. Right Livelihood. Deserving Opportunity.”</div>
+                </div>
+            </div>
+            <div class="header-status-badge">
+                <span class="live-dot"></span>
+                <span>Dual-Agent AI • 23 Indic Languages • NSQF Grounded</span>
+            </div>
+        </div>
+
+        <!-- Role & View Navigation Tabs -->
+        <nav class="nav-tabs" aria-label="Platform Views">
+            <div class="nav-container">
+                <button class="nav-tab active" data-tab="citizen-view" onclick="switchTab('citizen-view')">
+                    <span class="tab-icon">🎙️</span> Citizen Voice Companion
+                </button>
+                <button class="nav-tab" data-tab="mentor-view" onclick="switchTab('mentor-view')">
+                    <span class="tab-icon">🔄</span> Weekly Voice Mentor
+                </button>
+                <button class="nav-tab" data-tab="officer-view" onclick="switchTab('officer-view')">
+                    <span class="tab-icon">🏛️</span> State Skilling Officer Portal
+                    <span class="officer-badge-count" id="pending-badge">0</span>
+                </button>
+                <button class="nav-tab" data-tab="kb-view" onclick="switchTab('kb-view')">
+                    <span class="tab-icon">📚</span> NSQF &amp; Scheme Knowledge Hub
+                </button>
+                <button class="nav-tab" data-tab="impact-view" onclick="switchTab('impact-view')">
+                    <span class="tab-icon">📊</span> Impact &amp; National Metrics
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- DPDP Act Trust & Privacy Notification -->
+    <div class="dpdp-banner">
+        <div class="dpdp-container">
+            <span class="dpdp-icon">🔒</span>
+            <div class="dpdp-text">
+                <strong>DPDP Act 2023 Compliant:</strong> Voice data is processed with explicit consent strictly for livelihood mapping under PM-AJAY GIA. Minimal retention, zero third-party ads, SHA-256 verifiable audit trails.
+            </div>
+            <button class="dpdp-details-btn" onclick="openPrivacyModal()">Privacy Trust Layer</button>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <main id="main-content" class="app-main">
+
+        <!-- ================= TAB 1: CITIZEN VOICE COMPANION ================= -->
+        <section id="citizen-view" class="tab-content active" aria-labelledby="citizen-heading">
+            <h2 id="citizen-heading" class="sr-only">Citizen Voice Assistant Interface</h2>
+
+            <!-- Quick Demo Voice Presets -->
+            <div class="demo-presets-card">
+                <div class="demo-header">
+                    <span class="sparkle-icon">✨</span>
+                    <strong>Live Demonstration Presets (One-Click Voice Ingestion):</strong>
+                    <span class="demo-sub">Test multilingual voice processing across regional livelihoods:</span>
+                </div>
+                <div class="demo-buttons-grid">
+                    <button class="btn-demo" onclick="loadPreset('dairy-ta')">
+                        <span class="flag">🇮🇳 தமிழ்</span>
+                        <span class="title">Dairy Farmer (Tamil)</span>
+                        <span class="desc">"நான் இரண்டு எருமை மாடுகளை வளர்த்து..."</span>
+                    </button>
+                    <button class="btn-demo" onclick="loadPreset('tailor-hi')">
+                        <span class="flag">🇮🇳 हिन्दी</span>
+                        <span class="title">Garment Tailor (Hindi)</span>
+                        <span class="desc">"मैं 4 साल से सिलाई मशीन पर कपड़े..."</span>
+                    </button>
+                    <button class="btn-demo" onclick="loadPreset('electrician-te')">
+                        <span class="flag">🇮🇳 తెలుగు</span>
+                        <span class="title">Electrician (Telugu)</span>
+                        <span class="desc">"నేను ఇళ్లలో వైరింగ్, ఫ్యాన్లు రిపేర్ చేస్తాను..."</span>
+                    </button>
+                    <button class="btn-demo" onclick="loadPreset('food-bn')">
+                        <span class="flag">🇮🇳 বাংলা</span>
+                        <span class="title">Food Processor (Bengali)</span>
+                        <span class="desc">"আমি আচার ও পাঁপড় বানিয়ে বাজারে বিক্রি করি..."</span>
+                    </button>
+                    <button class="btn-demo" onclick="loadPreset('organic-mr')">
+                        <span class="flag">🇮🇳 मराठी</span>
+                        <span class="title">Organic Farmer (Marathi)</span>
+                        <span class="desc">"मी शेतात सेंद्रिय खत व जिवामृत वापरून..."</span>
+                    </button>
+                    <button class="btn-demo" onclick="loadPreset('solar-en')">
+                        <span class="flag">🇮🇳 English</span>
+                        <span class="title">Solar Installer (English)</span>
+                        <span class="desc">"I install rooftop solar panels and water pumps..."</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="citizen-layout">
+                <!-- Left Column: Voice Interaction & Conversation -->
+                <div class="interaction-column">
+                    <div class="card chat-card">
+                        <div class="card-header-flex">
+                            <div class="header-title-group">
+                                <h3>🗣️ Voice Assistance Studio</h3>
+                                <p class="card-desc">Speak naturally in your native language about your daily work and tools.</p>
+                            </div>
+                            <div class="lang-selector-group">
+                                <label for="lang-select">Language:</label>
+                                <select id="lang-select" class="form-select">
+                                    {% for code, info in langs.items() %}
+                                    <option value="{{ code }}" {% if code == 'en-IN' %}selected{% endif %}>{{ info.native }} ({{ info.name }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Chat / Voice Stream -->
+                        <div id="chat-stream" class="chat-stream" role="log" aria-live="polite" aria-label="Conversation history">
+                            <div class="welcome-box" id="welcome-box">
+                                <div class="welcome-icon">🎙️</div>
+                                <h4>Welcome to NARMADA Voice Companion</h4>
+                                <p>Select your language above and click <strong>"Begin Voice Assistance"</strong> to start. You can speak or type freely.</p>
+                            </div>
+                        </div>
+
+                        <!-- Audio Oscilloscope Waveform Visualizer -->
+                        <div class="waveform-container" id="waveform-container" hidden>
+                            <canvas id="waveform-canvas" width="600" height="48"></canvas>
+                            <div class="recording-status">
+                                <span class="recording-pulse"></span>
+                                <span id="recording-status-text">Listening to your voice... Speak now</span>
+                            </div>
+                        </div>
+
+                        <!-- Audio Player Controls -->
+                        <div class="audio-player-bar" id="audio-player-bar" hidden>
+                            <span class="audio-label">🔊 Voice Output:</span>
+                            <button type="button" class="btn-audio-ctrl" id="btn-replay-audio" onclick="replayLastSpeech()" title="Replay Audio">🔁 Replay Voice</button>
+                            <button type="button" class="btn-audio-ctrl" id="btn-stop-audio" onclick="stopSpeech()" title="Stop Audio">⏹️ Stop</button>
+                            <label class="speed-label">Speed:
+                                <select id="audio-speed-select" onchange="updateAudioSpeed()">
+                                    <option value="0.85">0.85x (Slower)</option>
+                                    <option value="1.0" selected>1.0x (Normal)</option>
+                                    <option value="1.15">1.15x (Faster)</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <!-- Input Control Dock -->
+                        <div class="input-control-dock">
+                            <button type="button" class="btn btn-primary btn-start-session" id="btn-start" onclick="startSession()">
+                                <span>🚀 Begin Voice Assistance</span>
+                            </button>
+
+                            <div class="active-input-row" id="active-input-row" hidden>
+                                <button type="button" class="btn-mic" id="btn-mic" onclick="toggleVoiceRecording()" title="Click to Speak" aria-label="Microphone Voice Input">
+                                    <span class="mic-icon">🎙️</span>
+                                    <span class="mic-label">Speak</span>
+                                </button>
+                                
+                                <div class="text-input-wrapper">
+                                    <input type="text" id="user-input-field" class="form-input" placeholder="Type your answer in your language..." onkeydown="handleInputKey(event)">
+                                    <button type="button" class="btn-send" id="btn-send" onclick="sendMessage()" title="Send Message" aria-label="Send Message">➤</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recommendation Trigger Bar -->
+                        <div class="recommendation-trigger-bar" id="rec-trigger-bar" hidden>
+                            <div class="trigger-info">
+                                <span class="badge badge-success">✓ Profile Captured</span>
+                                <span>Discovery Agent has mapped your core activities.</span>
+                            </div>
+                            <button type="button" class="btn btn-accent btn-large" id="btn-get-rec" onclick="requestRecommendation()">
+                                <span>🎯 Generate NSQF Skilling Pathway</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Extracted Profile & Grounded Recommendation -->
+                <div class="profile-column">
+                    <!-- Live Extracted Profile Card (Agent 1 Output) -->
+                    <div class="card profile-card">
+                        <div class="card-header-badge">
+                            <h3>📋 Live Work Profile</h3>
+                            <span class="agent-tag">Agent 1 • Discovery</span>
+                        </div>
+                        <p class="profile-subtitle">Real-time structured extraction from informal vernacular voice</p>
+
+                        <div class="profile-fields-list">
+                            <div class="profile-field">
+                                <span class="field-label">Inferred Domain:</span>
+                                <span class="field-value highlight" id="prof-domain">Awaiting voice input...</span>
+                            </div>
+                            <div class="profile-field">
+                                <span class="field-label">Daily Activities:</span>
+                                <div class="field-tags" id="prof-activities">
+                                    <span class="tag-empty">None recorded yet</span>
+                                </div>
+                            </div>
+                            <div class="profile-field">
+                                <span class="field-label">Tools &amp; Equipment:</span>
+                                <div class="field-tags" id="prof-tools">
+                                    <span class="tag-empty">None recorded yet</span>
+                                </div>
+                            </div>
+                            <div class="profile-field-grid">
+                                <div>
+                                    <span class="field-label">Frequency:</span>
+                                    <span class="field-value" id="prof-freq">-</span>
+                                </div>
+                                <div>
+                                    <span class="field-label">Experience:</span>
+                                    <span class="field-value" id="prof-exp">-</span>
+                                </div>
+                            </div>
+                            <div class="profile-field comm-field">
+                                <div class="comm-header">
+                                    <span class="field-label">Communication Signal &amp; Confidence:</span>
+                                    <span class="comm-score-badge" id="prof-comm-score">75%</span>
+                                </div>
+                                <div class="comm-bar-wrapper">
+                                    <div class="comm-bar-fill" id="prof-comm-bar" style="width: 75%;"></div>
+                                </div>
+                                <span class="comm-note" id="prof-comm-text">Session initialized</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recommended NSQF Qualification Card (Agent 2 Output) -->
+                    <div class="card rec-card" id="rec-result-card" hidden>
+                        <div class="card-header-badge success">
+                            <h3>🎓 Matched NSQF Qualification</h3>
+                            <span class="agent-tag green">Agent 2 • Grounded RAG</span>
+                        </div>
+
+                        <div class="rec-badge-strip">
+                            <span class="nsqf-level-badge" id="rec-nsqf-level">NSQF Level 4</span>
+                            <span class="nsqf-code-badge" id="rec-qp-code">AGR/Q8101</span>
+                            <span class="sector-badge" id="rec-sector">Agriculture &amp; Allied</span>
+                        </div>
+
+                        <h4 class="rec-title" id="rec-title">Dairy Farmer / Entrepreneur</h4>
+
+                        <div class="rec-section">
+                            <h5>💡 Why this fits your livelihood:</h5>
+                            <p id="rec-why" class="rec-text">-</p>
+                        </div>
+
+                        <div class="rec-section">
+                            <h5>🏛️ PM-AJAY GIA Grant Entitlement:</h5>
+                            <div class="gia-benefit-box">
+                                <div class="benefit-item">
+                                    <span class="benefit-icon">✅</span>
+                                    <span><strong>100% Free Training:</strong> Zero fee for SC beneficiaries under GIA component.</span>
+                                </div>
+                                <div class="benefit-item">
+                                    <span class="benefit-icon">🎁</span>
+                                    <span id="rec-toolkit-text"><strong>Tool Kit Subsidy:</strong> ₹15,000 grant for trade equipment.</span>
+                                </div>
+                                <div class="benefit-item">
+                                    <span class="benefit-icon">💳</span>
+                                    <span><strong>DBT Conveyance:</strong> Daily stipend paid directly to Aadhaar-linked bank.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rec-section">
+                            <h5>📖 Core Training Modules:</h5>
+                            <ul class="modules-list" id="rec-modules"></ul>
+                        </div>
+
+                        <div class="rec-metrics-grid">
+                            <div class="metric-box">
+                                <span class="metric-title">Career Progression:</span>
+                                <span class="metric-val" id="rec-career">-</span>
+                            </div>
+                            <div class="metric-box">
+                                <span class="metric-title">Expected Earning:</span>
+                                <span class="metric-val green-text" id="rec-wage">-</span>
+                            </div>
+                        </div>
+
+                        <div class="rec-section">
+                            <h5>📍 Nearest Training &amp; Registration Center:</h5>
+                            <p class="center-text" id="rec-center">-</p>
+                        </div>
+
+                        <div class="rec-section">
+                            <h5>🔄 Alternative Aligned Pathways:</h5>
+                            <div class="alt-list" id="rec-alts"></div>
+                        </div>
+
+                        <div class="rec-action-buttons">
+                            <button type="button" class="btn btn-passport" onclick="openPassportModal()">
+                                <span>📄 View &amp; Print Livelihood Passport</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="switchTab('mentor-view')">
+                                <span>🔄 Start Weekly Voice Mentorship</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: CONTINUOUS WEEKLY MENTOR ================= -->
+        <section id="mentor-view" class="tab-content" aria-labelledby="mentor-heading">
+            <div class="view-header">
+                <h2 id="mentor-heading">🔄 Continuous Voice Mentor (Post-Recommendation Loop)</h2>
+                <p class="view-sub">NARMADA stays with the citizen beyond a one-time form. Automated weekly check-ins track attendance, tool-kit handover, and micro-loan linkage under PM-AJAY.</p>
+            </div>
+
+            <div class="mentor-layout">
+                <div class="card mentor-card">
+                    <div class="mentor-timeline">
+                        <div class="timeline-step active" id="step-w1">
+                            <div class="step-marker">1</div>
+                            <div class="step-info">
+                                <h4>Week 1: Induction &amp; Tool Kit</h4>
+                                <p>Training onboarding, handbook, and safety gear verification.</p>
+                            </div>
+                        </div>
+                        <div class="timeline-step" id="step-w2">
+                            <div class="step-marker">2</div>
+                            <div class="step-info">
+                                <h4>Week 2: Practical Skills &amp; Stipend</h4>
+                                <p>On-site machinery practice and Aadhaar DBT stipend tracking.</p>
+                            </div>
+                        </div>
+                        <div class="timeline-step" id="step-w3">
+                            <div class="step-marker">3</div>
+                            <div class="step-info">
+                                <h4>Week 3+: NCVET Certification &amp; IGP Loan</h4>
+                                <p>Skill assessment, qualification certificate, and PM-AJAY ₹50,000 enterprise loan.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mentor-interactive-box">
+                        <h3>Simulate Weekly Voice Mentorship Check-in</h3>
+                        <div class="mentor-btn-group">
+                            <button type="button" class="btn btn-mentor" onclick="triggerMentorCheckin(1)">Simulate Week 1 Voice Call</button>
+                            <button type="button" class="btn btn-mentor" onclick="triggerMentorCheckin(2)">Simulate Week 2 Voice Call</button>
+                            <button type="button" class="btn btn-mentor" onclick="triggerMentorCheckin(3)">Simulate Week 3 Milestone</button>
+                        </div>
+
+                        <div class="mentor-audio-output" id="mentor-audio-box" hidden>
+                            <div class="mentor-avatar">🤖</div>
+                            <div class="mentor-speech-content">
+                                <h4 id="mentor-week-title">Week 1 Voice Guidance</h4>
+                                <p id="mentor-speech-text">-</p>
+                                <button type="button" class="btn-voice-replay" onclick="replayMentorAudio()">🔊 Replay Mentor Voice</button>
+                            </div>
+                        </div>
+
+                        <div class="mentor-history-log" id="mentor-history-log">
+                            <h4>Mentorship Audit History</h4>
+                            <div class="log-entries" id="mentor-log-entries">
+                                <p class="text-muted">No check-ins simulated yet for this active session.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: STATE SKILLING OFFICER PORTAL ================= -->
+        <section id="officer-view" class="tab-content" aria-labelledby="officer-heading">
+            <div class="view-header flex-between">
+                <div>
+                    <h2 id="officer-heading">🏛️ State Skilling Officer Verification Portal</h2>
+                    <p class="view-sub">Review AI-grounded livelihood mappings, verify PM-AJAY GIA compliance, and sanction training grants with auditable cryptographic logs.</p>
+                </div>
+                <div class="officer-actions">
+                    <button class="btn btn-outline" onclick="exportBeneficiariesCSV()">📥 Export Registry (CSV)</button>
+                    <button class="btn btn-primary" onclick="loadOfficerData()">🔄 Refresh Review Queue</button>
+                </div>
+            </div>
+
+            <!-- Review Queue Filters -->
+            <div class="filter-bar">
+                <span class="filter-label">Filter Queue:</span>
+                <button class="filter-chip active" onclick="filterOfficerQueue('all')">All (<span id="count-all">0</span>)</button>
+                <button class="filter-chip" onclick="filterOfficerQueue('active')">Pending Review (<span id="count-pending">0</span>)</button>
+                <button class="filter-chip" onclick="filterOfficerQueue('approved')">Grant Approved (<span id="count-approved">0</span>)</button>
+                <button class="filter-chip" onclick="filterOfficerQueue('flagged')">Flagged for Assessment (<span id="count-flagged">0</span>)</button>
+            </div>
+
+            <!-- Beneficiaries Table -->
+            <div class="card table-card">
+                <div class="table-responsive">
+                    <table class="officer-table" id="officer-table">
+                        <thead>
+                            <tr>
+                                <th>Beneficiary ID</th>
+                                <th>Language</th>
+                                <th>Extracted Livelihood</th>
+                                <th>Experience</th>
+                                <th>Communication Clarity</th>
+                                <th>Matched NSQF Pack</th>
+                                <th>Status</th>
+                                <th>Officer Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="officer-table-body">
+                            <tr>
+                                <td colspan="8" class="text-center py-4">Loading beneficiary review registry...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 4: NSQF & SCHEME KNOWLEDGE HUB ================= -->
+        <section id="kb-view" class="tab-content" aria-labelledby="kb-heading">
+            <div class="view-header">
+                <h2 id="kb-heading">📚 NSQF Qualification Packs &amp; PM-AJAY Knowledge Base</h2>
+                <p class="view-sub">Explore the 25+ verified National Skills Qualifications Framework (NCVET) documents and statutory PM-AJAY GIA guidelines powering NARMADA's Hybrid RAG layer.</p>
+            </div>
+
+            <div class="kb-search-bar">
+                <input type="text" id="kb-search-input" class="form-input" placeholder="Search by job role, sector, tools (e.g. Dairy, Solar, Sewing, Plumber)..." onkeyup="filterKB()">
+                <select id="kb-sector-filter" class="form-select" onchange="filterKB()">
+                    <option value="">All Sectors</option>
+                    <option value="Agriculture">Agriculture &amp; Allied</option>
+                    <option value="Apparel">Apparel &amp; Textiles</option>
+                    <option value="Electronics">Electronics &amp; Green Energy</option>
+                    <option value="Food">Food Processing</option>
+                    <option value="Automotive">Automotive &amp; Mechanics</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Plumbing">Plumbing &amp; Construction</option>
+                    <option value="Retail">Retail &amp; Logistics</option>
+                    <option value="Statutory">PM-AJAY Statutory Rules</option>
+                </select>
+            </div>
+
+            <div class="kb-grid" id="kb-grid">
+                <div class="text-center py-4">Loading knowledge base items...</div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 5: NATIONAL IMPACT & METRICS ================= -->
+        <section id="impact-view" class="tab-content" aria-labelledby="impact-heading">
+            <div class="view-header">
+                <h2 id="impact-heading">📊 National Impact &amp; PM-AJAY FY23–24 Indicators</h2>
+                <p class="view-sub">Real-time platform metrics aligned with official Ministry of Social Justice &amp; Empowerment benchmark targets (SIH26097).</p>
+            </div>
+
+            <div class="stats-counter-grid">
+                <div class="stat-card">
+                    <div class="stat-num" id="stat-active-mapped">0</div>
+                    <div class="stat-desc">Live Citizens Mapped via Voice</div>
+                    <div class="stat-meta">Informal workers profiled</div>
+                </div>
+                <div class="stat-card accent">
+                    <div class="stat-num" id="stat-nsqf-issued">0</div>
+                    <div class="stat-desc">NSQF Pathways Recommended</div>
+                    <div class="stat-meta">Grounded RAG matches</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-num" id="stat-grants-approved">0</div>
+                    <div class="stat-desc">PM-AJAY GIA Grants Sanctioned</div>
+                    <div class="stat-meta">State officer validated</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num" id="stat-dpdp-logs">0</div>
+                    <div class="stat-desc">DPDP Act Trust Logs</div>
+                    <div class="stat-meta">Cryptographically sealed</div>
+                </div>
+            </div>
+
+            <div class="official-benchmarks-card">
+                <h3>🏛️ Official Government PM-AJAY Benchmarks (FY 2023–24)</h3>
+                <div class="benchmarks-grid">
+                    <div class="bench-box">
+                        <div class="bench-num">70,934</div>
+                        <div class="bench-desc">SC beneficiaries under PM-AJAY GIA skill-development projects</div>
+                        <a href="https://socialjustice.gov.in" target="_blank" class="bench-source">Source: MoSJE Official Portal ↗</a>
+                    </div>
+                    <div class="bench-box">
+                        <div class="bench-num">913</div>
+                        <div class="bench-desc">Skill-development projects approved under PM-AJAY Grant-in-Aid</div>
+                        <a href="https://socialjustice.gov.in" target="_blank" class="bench-source">Source: MoSJE FY23-24 Report ↗</a>
+                    </div>
+                    <div class="bench-box">
+                        <div class="bench-num">30,660</div>
+                        <div class="bench-desc">SC persons entered NSQF-compliant certified training</div>
+                        <a href="https://ncvet.gov.in" target="_blank" class="bench-source">Source: NCVET / NSDC Registry ↗</a>
+                    </div>
+                    <div class="bench-box">
+                        <div class="bench-num">201.38M</div>
+                        <div class="bench-desc">Scheduled Caste population in India (16.63% national reach target)</div>
+                        <a href="https://censusindia.gov.in" target="_blank" class="bench-source">Source: Census of India ↗</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparative Analysis Table (from Report Page 7 & 8) -->
+            <div class="card table-card mt-4">
+                <div class="card-header-flex">
+                    <h3>🏆 Solution Comparison Matrix</h3>
+                    <span class="badge badge-success">NARMADA Core Differentiation</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="officer-table">
+                        <thead>
+                            <tr>
+                                <th>Key Feature / Pillar</th>
+                                <th>Skill India Digital</th>
+                                <th>Apna App</th>
+                                <th>Gram Vaani</th>
+                                <th>NARMADA (Our Solution)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Voice-First Interface (No reading/typing)</strong></td>
+                                <td><span class="text-danger">No</span></td>
+                                <td><span class="text-warning">Limited</span></td>
+                                <td><span class="text-success">Yes</span></td>
+                                <td><span class="badge badge-success">Full Indic Voice</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Infers Skills from Daily Informal Activity</strong></td>
+                                <td><span class="text-danger">No</span></td>
+                                <td><span class="text-warning">Limited</span></td>
+                                <td><span class="text-danger">No</span></td>
+                                <td><span class="badge badge-success">Agent 1 Extraction</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>NSQF-Aligned Qualification Recommendation</strong></td>
+                                <td><span class="text-warning">Limited</span></td>
+                                <td><span class="text-danger">No</span></td>
+                                <td><span class="text-danger">No</span></td>
+                                <td><span class="badge badge-success">Grounded RAG (NCVET)</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>PM-AJAY GIA Eligibility &amp; Grant Linkage</strong></td>
+                                <td><span class="text-warning">Limited</span></td>
+                                <td><span class="text-danger">No</span></td>
+                                <td><span class="text-warning">Limited</span></td>
+                                <td><span class="badge badge-success">Deterministic Rules</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Continuous Weekly Voice Mentoring Loop</strong></td>
+                                <td><span class="text-danger">No</span></td>
+                                <td><span class="text-danger">No</span></td>
+                                <td><span class="text-warning">Limited</span></td>
+                                <td><span class="badge badge-success">Agent 2 Check-in Loop</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Communication-Confidence Signal Analysis</strong></td>
+                                <td><span class="text-danger">No</span></td>
+                                <td><span class="text-danger">No</span></td>
+                                <td><span class="text-danger">No</span></td>
+                                <td><span class="badge badge-success">Yes (Aptitude Score)</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Modal 1: NARMADA Livelihood & Skilling Passport (Printable) -->
+    <div class="modal-backdrop" id="passport-modal" hidden>
+        <div class="modal-dialog">
+            <div class="modal-content passport-card" id="passport-printable-area">
+                <div class="passport-header">
+                    <div class="passport-gov-strip">
+                        <span>GOVERNMENT OF INDIA • MINISTRY OF SOCIAL JUSTICE &amp; EMPOWERMENT</span>
+                        <span>PM-AJAY GIA SKILLING COMPONENT</span>
+                    </div>
+                    <div class="passport-brand-row">
+                        <div class="passport-emblem">N</div>
+                        <div>
+                            <h2>NARMADA LIVELIHOOD &amp; SKILLING PASSPORT</h2>
+                            <p>Official Beneficiary Competency &amp; Grant Entitlement Card</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="passport-body">
+                    <div class="passport-details-col">
+                        <div class="p-row"><span class="p-label">Beneficiary ID:</span> <strong id="p-bid">PMAJAY-SC-XXXXXXXX</strong></div>
+                        <div class="p-row"><span class="p-label">Native Language:</span> <span id="p-lang">Tamil / English</span></div>
+                        <div class="p-row"><span class="p-label">Inferred Livelihood:</span> <span id="p-domain">Dairy Farmer</span></div>
+                        <div class="p-row"><span class="p-label">Verified Experience:</span> <span id="p-exp">5 years</span></div>
+                        <div class="p-row"><span class="p-label">Communication Signal:</span> <span id="p-comm">High Clarity (88%)</span></div>
+                        
+                        <hr class="p-divider">
+                        
+                        <div class="p-row"><span class="p-label">Matched NSQF Pack:</span> <strong id="p-title">Dairy Farmer / Entrepreneur</strong></div>
+                        <div class="p-row"><span class="p-label">Qualification Code:</span> <strong class="badge badge-primary" id="p-code">AGR/Q8101</strong> (Level <span id="p-level">4</span>)</div>
+                        <div class="p-row"><span class="p-label">PM-AJAY GIA Grant:</span> <span class="badge badge-success">100% Free Training + ₹15,000 Tool Kit</span></div>
+                        <div class="p-row"><span class="p-label">Generated Timestamp:</span> <span id="p-time">-</span></div>
+                    </div>
+                    <div class="passport-qr-col">
+                        <div id="passport-qrcode" class="qr-box"></div>
+                        <div class="qr-caption">Scan to verify cryptographic SHA-256 integrity on State MIS</div>
+                    </div>
+                </div>
+
+                <div class="passport-footer">
+                    <div class="hash-strip">
+                        <span>SHA-256 Audit Hash:</span>
+                        <code id="p-hash">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</code>
+                    </div>
+                    <div class="signature-row">
+                        <div class="sig-box">
+                            <div class="sig-line"></div>
+                            <span>Beneficiary Signature / Thumb</span>
+                        </div>
+                        <div class="sig-box">
+                            <div class="sig-stamp">VERIFIED &amp; APPROVED</div>
+                            <div class="sig-line"></div>
+                            <span>District Skilling Officer / PMKK Lead</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-primary" onclick="window.print()">🖨️ Print Livelihood Passport</button>
+                <button type="button" class="btn btn-secondary" onclick="closePassportModal()">✕ Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: DPDP Privacy & Trust Details -->
+    <div class="modal-backdrop" id="privacy-modal" hidden>
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🔒 DPDP Act 2023 Trust Layer &amp; Compliance</h3>
+                    <button class="btn-close" onclick="closePrivacyModal()">×</button>
+                </div>
+                <div class="modal-body-scroll">
+                    <p>NARMADA is engineered from ground up with the Digital Personal Data Protection (DPDP) Act, 2023 requirements:</p>
+                    <ul class="trust-features-list">
+                        <li><strong>Explicit Multilingual Consent:</strong> Voice audio is captured only after the user presses the speak action with clear purpose notice.</li>
+                        <li><strong>Data Minimization:</strong> Raw voice audio streams are processed in-memory. Only structured livelihood features (tools, experience, domain) are persisted.</li>
+                        <li><strong>Cryptographic Audit Trails:</strong> Every generated NSQF recommendation is sealed with an immutable SHA-256 hash containing timestamp, profile metadata, and cited Qualification Pack.</li>
+                        <li><strong>Human-in-the-Loop Oversight:</strong> State Skilling Officers have an auditable override and approval dashboard before any government grant is disbursed.</li>
+                        <li><strong>Right to Erasure:</strong> Citizens can clear their session and associated metadata at any time.</li>
+                    </ul>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closePrivacyModal()">Understood</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Officer Review Action Modal -->
+    <div class="modal-backdrop" id="officer-modal" hidden>
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🏛️ Review &amp; Grant Approval: <span id="m-bid">PMAJAY-SC-XXXX</span></h3>
+                    <button class="btn-close" onclick="closeOfficerModal()">×</button>
+                </div>
+                <div class="modal-body-scroll">
+                    <div class="review-meta-box">
+                        <p><strong>Livelihood:</strong> <span id="m-domain">-</span> | <strong>Experience:</strong> <span id="m-exp">-</span></p>
+                        <p><strong>Matched NSQF:</strong> <span id="m-qp">-</span> (NSQF Level <span id="m-level">-</span>)</p>
+                        <p><strong>Tools Extracted:</strong> <span id="m-tools">-</span></p>
+                        <p><strong>Communication Clarity:</strong> <span id="m-comm">-</span></p>
+                        <p><strong>Audit Hash:</strong> <code id="m-hash">-</code></p>
+                    </div>
+
+                    <div class="form-group mt-3">
+                        <label for="officer-notes-input"><strong>Officer Verification Notes / Center Allotment:</strong></label>
+                        <textarea id="officer-notes-input" class="form-textarea" rows="3" placeholder="e.g. Verified Aadhaar &amp; SC category. Allocated to PMKK District Center, Batch #402."></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-success" onclick="submitOfficerAction('approved')">✓ Approve PM-AJAY GIA Grant</button>
+                    <button type="button" class="btn btn-warning" onclick="submitOfficerAction('flagged')">⚠️ Flag for Skill Assessment</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeOfficerModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="footer-container">
+            <div class="footer-col">
+                <h4>NARMADA Platform</h4>
+                <p>Native-language Aptitude Recognition &amp; Mentoring Architecture Driving Advancement</p>
+                <p>Smart India Hackathon 2026 • Problem Statement SIH26097 • Team CodeRhythm (153375)</p>
+            </div>
+            <div class="footer-col">
+                <h4>Government Linkages</h4>
+                <ul class="footer-links">
+                    <li><a href="https://socialjustice.gov.in" target="_blank">Ministry of Social Justice &amp; Empowerment ↗</a></li>
+                    <li><a href="https://ncvet.gov.in" target="_blank">National Council for Vocational Education &amp; Training (NCVET) ↗</a></li>
+                    <li><a href="https://bhashini.gov.in" target="_blank">Digital India Bhashini Mission ↗</a></li>
+                    <li><a href="https://pmmodiyojana.in/pm-ajay-yojana/" target="_blank">PM-AJAY Scheme Guidelines ↗</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>System Architecture</h4>
+                <p>• Dual-Agent AI (Discovery + Guidance &amp; Mentorship)</p>
+                <p>• Hybrid RAG (Dense + Token-Weighted Indic Retrieval)</p>
+                <p>• DPDP Act 2023 Trust Layer with SHA-256 Audit Verification</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2026 NARMADA | Designed for inclusive skilling and rural livelihood transformation under PM-AJAY.</p>
+        </div>
+    </footer>
+
+    <!-- Main Client Script -->
+    <script src="/static/app.js"></script>
+</body>
+</html>
