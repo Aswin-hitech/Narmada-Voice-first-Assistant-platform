@@ -6,42 +6,100 @@ import re
 import hashlib
 from datetime import datetime, timezone
 import sqlite3
+import tempfile
 
 from flask import Flask, request, jsonify, render_template, send_file
 from dotenv import load_dotenv
 
-load_dotenv()
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
-# Try importing OpenAI if available
-OPENAI_KEY = os.getenv("OPENAI_API_KEY", "").strip()
-OPENAI_CLIENT = None
-if OPENAI_KEY and not OPENAI_KEY.startswith("sk-placeholder") and OPENAI_KEY != "sk-...":
+# ----------------- NVIDIA NIM & AI Foundation Separate Client Initialization -----------------
+# Global fallback key
+NVIDIA_API_KEY = (os.getenv("NVIDIA_API_KEY") or os.getenv("OPENAI_API_KEY") or "").strip()
+DEFAULT_NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
+
+# 1. Reasoning & Generation (Nemotron 3-Super 120B)
+NEMOTRON_API_KEY = (os.getenv("NEMOTRON_API_KEY") or NVIDIA_API_KEY).strip()
+NEMOTRON_BASE_URL = (os.getenv("NEMOTRON_BASE_URL") or os.getenv("NVIDIA_BASE_URL") or DEFAULT_NVIDIA_BASE_URL).strip()
+NEMOTRON_MODEL = (os.getenv("NEMOTRON_MODEL") or "nvidia/nemotron-3-super-120b-a12b").strip()
+
+# 2. Text Translation (Riva-Translate-4B-Instruct-v2)
+RIVA_TRANSLATE_API_KEY = (os.getenv("RIVA_TRANSLATE_API_KEY") or os.getenv("NMT_API_KEY") or NVIDIA_API_KEY).strip()
+RIVA_TRANSLATE_BASE_URL = (os.getenv("RIVA_TRANSLATE_BASE_URL") or os.getenv("NVIDIA_BASE_URL") or DEFAULT_NVIDIA_BASE_URL).strip()
+RIVA_TRANSLATE_MODEL = (os.getenv("RIVA_TRANSLATE_MODEL") or "nvidia/riva-translate-4b-instruct-v2").strip()
+
+# 3. Speech-to-Text (Parakeet ASR)
+PARAKEET_API_KEY = (os.getenv("PARAKEET_API_KEY") or os.getenv("ASR_API_KEY") or NVIDIA_API_KEY).strip()
+PARAKEET_ASR_MODEL = (os.getenv("PARAKEET_ASR_MODEL") or "nvidia/parakeet-tdt-0.6b-v2").strip()
+PARAKEET_ASR_SERVER = (os.getenv("PARAKEET_ASR_SERVER") or os.getenv("RIVA_ASR_SERVER") or "grpc.nvcf.nvidia.com:443").strip()
+PARAKEET_FUNCTION_ID = (os.getenv("PARAKEET_FUNCTION_ID") or "").strip()
+
+DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
+
+# Initialize Nemotron Reasoning Client
+NEMOTRON_CLIENT = None
+if NEMOTRON_API_KEY and not NEMOTRON_API_KEY.startswith("sk-placeholder") and NEMOTRON_API_KEY != "sk-...":
     try:
         from openai import OpenAI
-        OPENAI_CLIENT = OpenAI(api_key=OPENAI_KEY)
+        NEMOTRON_CLIENT = OpenAI(
+            base_url=NEMOTRON_BASE_URL,
+            api_key=NEMOTRON_API_KEY
+        )
+        print(f"[Nemotron Client] Initialized successfully with model: {NEMOTRON_MODEL}")
     except Exception as e:
-        print(f"[Warning] OpenAI init failed: {e}")
+        print(f"[Warning] Nemotron client init failed: {e}")
 
-CHAT_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
-EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
-DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+# Initialize Riva Translation Client
+RIVA_TRANSLATE_CLIENT = None
+if RIVA_TRANSLATE_API_KEY and not RIVA_TRANSLATE_API_KEY.startswith("sk-placeholder") and RIVA_TRANSLATE_API_KEY != "sk-...":
+    try:
+        from openai import OpenAI
+        RIVA_TRANSLATE_CLIENT = OpenAI(
+            base_url=RIVA_TRANSLATE_BASE_URL,
+            api_key=RIVA_TRANSLATE_API_KEY
+        )
+        print(f"[Riva Translate Client] Initialized successfully with model: {RIVA_TRANSLATE_MODEL}")
+    except Exception as e:
+        print(f"[Warning] Riva Translate client init failed: {e}")
+
+# Initialize Parakeet Riva ASR Service
+RIVA_ASR_SERVICE = None
+try:
+    import riva.client
+    if PARAKEET_API_KEY:
+        try:
+            metadata = [["authorization", f"Bearer {PARAKEET_API_KEY}"]]
+            if PARAKEET_FUNCTION_ID:
+                metadata.append(["function-id", PARAKEET_FUNCTION_ID])
+            auth = riva.client.Auth(
+                uri=PARAKEET_ASR_SERVER,
+                use_ssl=True,
+                metadata_args=metadata
+            )
+            RIVA_ASR_SERVICE = riva.client.ASRService(auth)
+            print("[Parakeet ASR Service] Initialized successfully via Riva gRPC.")
+        except Exception as e:
+            print(f"[Notice] Parakeet Riva ASR auth optional: {e}")
+except Exception as e:
+    print(f"[Notice] riva.client not available: {e}")
 
 # Supported Indian Languages
 LANGS = {
-    "en-IN": {"name": "English (India)", "native": "English", "code": "en-IN"},
-    "hi-IN": {"name": "Hindi", "native": "हिन्दी", "code": "hi-IN"},
-    "ta-IN": {"name": "Tamil", "native": "தமிழ்", "code": "ta-IN"},
-    "te-IN": {"name": "Telugu", "native": "తెలుగు", "code": "te-IN"},
-    "kn-IN": {"name": "Kannada", "native": "ಕನ್ನಡ", "code": "kn-IN"},
-    "ml-IN": {"name": "Malayalam", "native": "മലയാളം", "code": "ml-IN"},
-    "mr-IN": {"name": "Marathi", "native": "मराठी", "code": "mr-IN"},
-    "bn-IN": {"name": "Bengali", "native": "বাংলা", "code": "bn-IN"},
-    "gu-IN": {"name": "Gujarati", "native": "ગુજરાતી", "code": "gu-IN"},
-    "or-IN": {"name": "Odia", "native": "ଓଡ଼ିଆ", "code": "or-IN"},
-    "pa-IN": {"name": "Punjabi", "native": "ਪੰਜਾਬੀ", "code": "pa-IN"}
+    "en-IN": {"name": "English (India)", "native": "English", "code": "en-IN", "iso": "en"},
+    "hi-IN": {"name": "Hindi", "native": "हिन्दी", "code": "hi-IN", "iso": "hi"},
+    "ta-IN": {"name": "Tamil", "native": "தமிழ்", "code": "ta-IN", "iso": "ta"},
+    "te-IN": {"name": "Telugu", "native": "తెలుగు", "code": "te-IN", "iso": "te"},
+    "kn-IN": {"name": "Kannada", "native": "ಕನ್ನಡ", "code": "kn-IN", "iso": "kn"},
+    "ml-IN": {"name": "Malayalam", "native": "മലയാളം", "code": "ml-IN", "iso": "ml"},
+    "mr-IN": {"name": "Marathi", "native": "मराठी", "code": "mr-IN", "iso": "mr"},
+    "bn-IN": {"name": "Bengali", "native": "বাংলা", "code": "bn-IN", "iso": "bn"},
+    "gu-IN": {"name": "Gujarati", "native": "ગુજરાતી", "code": "gu-IN", "iso": "gu"},
+    "or-IN": {"name": "Odia", "native": "ଓଡ଼ିଆ", "code": "or-IN", "iso": "or"},
+    "pa-IN": {"name": "Punjabi", "native": "ਪੰਜਾਬੀ", "code": "pa-IN", "iso": "pa"}
 }
 
 # Pre-defined localized greetings & fallback templates
@@ -54,7 +112,7 @@ LOCALIZED_GREETINGS = {
     "ml-IN": "നമസ്കാരം! നർമ്മദ പ്ലാറ്റ്‌ഫോമിലേക്ക് സ്വാഗതം. നിങ്ങളുടെ ദൈനംദിന ജോലി, ഉപയോഗിക്കുന്ന ഉപകരണങ്ങൾ, തൊഴിൽ പരിചയം എന്നിവയെക്കുറിച്ച് പറയുക.",
     "mr-IN": "नमस्ते! नर्मदा सहाय्यकामध्ये आपले स्वागत आहे. आपण रोज करत असलेले काम, वापरत असलेली साधने आणि आपल्या अनुभवाबद्दल सांगा.",
     "bn-IN": "নমস্কার! নর্মদা সহায়কে আপনাকে স্বাগতম। আপনি প্রতিদিন কী কাজ করেন, কী কী যন্ত্রপাতি ব্যবহার করেন এবং আপনার অভিজ্ঞতা জানান।",
-    "gu-IN": "નમસ્તે! નર્મદા સહાયકમાં આપનું સ્વાગત છે. તમારા રોજના કામ, સાધનો અને અનુભવ વિશે જણાવો.",
+    "gu-IN": "નમસ્તે! નર્મદા સહાયકમાં આપનું સ્વાગત છે. તમારા રોજના काम, સાધનો અને અનુભવ વિશે જણાવો.",
     "or-IN": "ନମସ୍କାର! ନର୍ମଦା ସହାୟକକୁ ଆପଣଙ୍କୁ ସ୍ୱାଗତ। ଆପଣଙ୍କ ଦୈନନ୍ଦିନ କାର୍ଯ୍ୟ, ବ୍ୟବହୃତ ଉପକରଣ ଓ ଅଭିଜ୍ଞତା ବିଷୟରେ କୁହନ୍ତୁ।",
     "pa-IN": "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ! ਨਰਮਦਾ ਸਹਾਇਕ ਵਿੱਚ ਤੁਹਾਡਾ ਸਵਾਗਤ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਆਪਣੇ ਰੋਜ਼ਾਨਾ ਦੇ ਕੰਮ, ਵਰਤੇ ਜਾਂਦੇ ਔਜ਼ਾਰਾਂ ਅਤੇ ਤਜ਼ਰਬੇ ਬਾਰੇ ਦੱਸੋ।"
 }
@@ -117,13 +175,105 @@ LOCALIZED_PROMPTS = {
     }
 }
 
+# ----------------- Translation Layer (Riva-Translate-4B-Instruct-v2) -----------------
+def translate_with_riva(text, src_lang="en-IN", target_lang="hi-IN"):
+    """
+    Translates text using nvidia/riva-translate-4b-instruct-v2.
+    """
+    client = RIVA_TRANSLATE_CLIENT or NEMOTRON_CLIENT
+    if not text or not client:
+        return text
+
+    src_iso = LANGS.get(src_lang, {}).get("iso", "en") if "-" in src_lang else src_lang
+    tgt_iso = LANGS.get(target_lang, {}).get("iso", "en") if "-" in target_lang else target_lang
+
+    if src_iso == tgt_iso:
+        return text
+
+    try:
+        pair = f"{src_iso}-{tgt_iso}"
+        res = client.chat.completions.create(
+            model=RIVA_TRANSLATE_MODEL,
+            messages=[
+                {"role": "system", "content": pair},
+                {"role": "user", "content": text}
+            ],
+            temperature=0.1,
+            max_tokens=1024
+        )
+        content = res.choices[0].message.content
+        if content and content.strip():
+            return content.strip()
+    except Exception as e:
+        # Fallback to instruction prompt format if pair format differs
+        try:
+            target_name = LANGS.get(target_lang, {}).get("name", target_lang)
+            res = client.chat.completions.create(
+                model=RIVA_TRANSLATE_MODEL,
+                messages=[
+                    {"role": "user", "content": f"Translate the following text accurately into {target_name}:\n{text}"}
+                ],
+                temperature=0.1,
+                max_tokens=1024
+            )
+            content = res.choices[0].message.content
+            if content and content.strip():
+                return content.strip()
+        except Exception as e2:
+            print(f"[Riva Translate Error] ({src_iso}->{tgt_iso}): {e2}")
+
+    return text
+
+# ----------------- Speech-to-Text Layer (Parakeet ASR) -----------------
+def transcribe_with_parakeet(audio_bytes, lang_code="en-IN"):
+    """
+    Transcribes voice audio using NVIDIA Parakeet ASR model.
+    """
+    if RIVA_ASR_SERVICE and audio_bytes:
+        try:
+            config = riva.client.RecognitionConfig(
+                encoding=riva.client.AudioEncoding.LINEAR_PCM,
+                sample_rate_hertz=16000,
+                language_code=lang_code,
+                max_alternatives=1,
+                enable_automatic_punctuation=True
+            )
+            response = RIVA_ASR_SERVICE.offline_recognize(audio_bytes, config)
+            if response.results and response.results[0].alternatives:
+                transcript = response.results[0].alternatives[0].transcript
+                return transcript
+        except Exception as e:
+            print(f"[Parakeet Riva ASR Notice] {e}")
+
+    return None
+
+# ----------------- Robust JSON Output Cleaner -----------------
+def clean_json_response(raw_text):
+    if not raw_text:
+        return {}
+    # Extract json block if inside markdown ```json ... ```
+    match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw_text, re.DOTALL)
+    if match:
+        raw_text = match.group(1)
+    else:
+        # Look for the outer { ... }
+        s = raw_text.find('{')
+        e = raw_text.rfind('}')
+        if s != -1 and e != -1 and e > s:
+            raw_text = raw_text[s:e+1]
+    try:
+        return json.loads(raw_text)
+    except Exception as err:
+        print(f"[JSON Parse Notice] Error parsing: {err}")
+        return {}
+
 # ----------------- Database Abstraction Layer -----------------
 DB_FILE = os.path.join(os.path.dirname(__file__), "narmada.db")
 USE_POSTGRES = False
 
 def get_db():
     global USE_POSTGRES
-    if DATABASE_URL and ("postgresql://" in DATABASE_URL or "postgres://" in DATABASE_URL):
+    if DATABASE_URL and ("postgresql://" in DATABASE_URL or "postgres://" in DATABASE_URL) and "ep-xxxx" not in DATABASE_URL and "user:password@" not in DATABASE_URL:
         try:
             import psycopg2
             import psycopg2.extras
@@ -171,7 +321,6 @@ def execute_query(sql, args=(), fetch=None):
 def simple_tokenize(text):
     if not text:
         return []
-    # Normalize and tokenize Latin and Indic unicode characters
     cleaned = re.sub(r'[^\w\s]', ' ', text.lower(), flags=re.UNICODE)
     tokens = [t.strip() for t in cleaned.split() if len(t.strip()) > 1]
     return tokens
@@ -224,15 +373,6 @@ def dense_cosine(a, b):
     if mag_a == 0 or mag_b == 0:
         return 0.0
     return dot / (mag_a * mag_b)
-
-def embed_texts(texts):
-    if OPENAI_CLIENT:
-        try:
-            res = OPENAI_CLIENT.embeddings.create(model=EMBED_MODEL, input=texts)
-            return [d.embedding for d in res.data]
-        except Exception as e:
-            print(f"[Warning] OpenAI embedding failed: {e}. Using local sparse vector fallback.")
-    return [None for _ in texts]
 
 # ----------------- Database Initialization -----------------
 def init_db():
@@ -315,22 +455,46 @@ def init_db():
             );
         """)
 
-    # Seed Knowledge Base
-    kb_count = execute_query("SELECT count(*) as n FROM kb", fetch="one")
-    if not kb_count or kb_count["n"] == 0:
-        kb_path = os.path.join(os.path.dirname(__file__), "kb.json")
-        if os.path.exists(kb_path):
-            with open(kb_path, "r", encoding="utf-8") as f:
-                docs = json.load(f)
-            
-            texts_to_embed = [f"{d['title']}. {d['sector']}. {d['text']}" for d in docs]
-            embeddings = embed_texts(texts_to_embed)
-            
-            for d, emb in zip(docs, embeddings):
-                modules_json = json.dumps(d.get("modules", []))
-                emb_val = json.dumps(emb) if emb else None
+    # Seed and sync Knowledge Base (NSQF Qualification Packs & PM-AJAY Scheme Guidelines)
+    kb_path = os.path.join(os.path.dirname(__file__), "kb.json")
+    if os.path.exists(kb_path):
+        with open(kb_path, "r", encoding="utf-8") as f:
+            docs = json.load(f)
+        
+        for d in docs:
+            modules_json = json.dumps(d.get("modules", []))
+            if USE_POSTGRES:
                 execute_query("""
                     INSERT INTO kb (code, kind, title, sector, level, min_education, body, modules, career_path, wage_potential, pm_ajay_grant, emb)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (code) DO UPDATE SET
+                        kind = EXCLUDED.kind,
+                        title = EXCLUDED.title,
+                        sector = EXCLUDED.sector,
+                        level = EXCLUDED.level,
+                        min_education = EXCLUDED.min_education,
+                        body = EXCLUDED.body,
+                        modules = EXCLUDED.modules,
+                        career_path = EXCLUDED.career_path,
+                        wage_potential = EXCLUDED.wage_potential,
+                        pm_ajay_grant = EXCLUDED.pm_ajay_grant
+                """, (
+                    d["code"],
+                    d["kind"],
+                    d["title"],
+                    d.get("sector", ""),
+                    d.get("level", 0),
+                    d.get("min_education", ""),
+                    d["text"],
+                    modules_json,
+                    d.get("career_path", ""),
+                    d.get("wage_potential", ""),
+                    d.get("pm_ajay_grant", ""),
+                    None
+                ))
+            else:
+                execute_query("""
+                    INSERT OR REPLACE INTO kb (code, kind, title, sector, level, min_education, body, modules, career_path, wage_potential, pm_ajay_grant, emb)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
                     d["code"],
@@ -344,13 +508,11 @@ def init_db():
                     d.get("career_path", ""),
                     d.get("wage_potential", ""),
                     d.get("pm_ajay_grant", ""),
-                    emb_val
+                    None
                 ))
-            print(f"Knowledge base initialized with {len(docs)} documents.")
+        print(f"[NARMADA RAG] Synced {len(docs)} NSQF Qualification Packs & PM-AJAY Scheme Rules into Knowledge Base.")
 
-# ----------------- Intelligent Dual Agent Orchestrator -----------------
-
-# Domain keyword taxonomy for Indic & English extraction fallback
+# ----------------- Domain Taxonomy for Resilient Multi-lingual Extraction -----------------
 DOMAIN_KEYWORD_MAP = {
     "Dairy & Animal Husbandry": {
         "keywords": ["cow", "cows", "buffalo", "buffaloes", "milk", "milking", "dairy", "cattle", "ghee", "curd", "paneer", "dung", "பால்", "எருமை", "மாடு", "गाय", "भैंस", "दूध", "डेयरी", "గొర్రెలు", "ఆవు", "గేదె", "పాలు", "ಹಸು", "ಹಾಲು", "പശു", "പാൽ", "দুধ", "গরু"],
@@ -450,12 +612,10 @@ DOMAIN_KEYWORD_MAP = {
 }
 
 def extract_experience_from_text(text):
-    # Match patterns like "5 years", "2 saal", "3 varusham", "10 varsha", "4 masam", "6 months"
     exp_match = re.search(r'(\d+)\s*(?:years?|yrs?|saal|sal|varusham|varushangal|samvatsaralu|varsha|varshangal|bochhor|mahine|months?|masam)', text, re.IGNORECASE)
     if exp_match:
         return f"{exp_match.group(1)} years"
     
-    # Generic indicators
     if any(w in text.lower() for w in ["traditional", "childhood", "many years", "parambariyam", "bachpan", "bahut saal"]):
         return "5+ years (Traditional / Family livelihood)"
     elif any(w in text.lower() for w in ["recently", "new", "pudhusa", "naya"]):
@@ -470,7 +630,6 @@ def calculate_communication_signal(history):
     total_words = sum(len(m.split()) for m in user_msgs)
     avg_len = total_words / max(len(user_msgs), 1)
     
-    # Analyze articulation clarity
     has_specifics = any(re.search(r'\d+', m) for m in user_msgs) or any(len(m.split()) > 6 for m in user_msgs)
     
     if avg_len >= 12 and has_specifics:
@@ -519,7 +678,6 @@ def analyze_profile_heuristic(history, lang):
     
     comm = calculate_communication_signal(history)
     
-    # Decide if we have enough
     has_activity = bool(matched_domains) or len(user_texts.split()) > 5
     has_tools = bool(extracted_tools) or any(w in text_lower for w in ["machine", "tool", "gear", "pan", "needle", "wire", "can"])
     has_exp = bool(exp and exp != "2-3 years") or len(history) >= 4
@@ -536,7 +694,6 @@ def analyze_profile_heuristic(history, lang):
         "communication": f"{comm['clarity']} (Signal Score: {comm['score']}%)"
     }
     
-    # Formulate next natural reply
     lang_key = lang if lang in LOCALIZED_PROMPTS else "en-IN"
     if enough:
         reply = LOCALIZED_PROMPTS[lang_key]["complete"]
@@ -550,50 +707,69 @@ def analyze_profile_heuristic(history, lang):
         
     return {"reply": reply, "profile": profile, "enough": enough}
 
-# ----------------- LLM Agent Invocation with Resilient Fallback -----------------
+# ----------------- NVIDIA Nemotron-3 Reasoning & Discovery Agent (Agent 1) -----------------
 def call_discovery_agent(history, lang, current_profile):
-    if OPENAI_CLIENT:
+    """
+    Executes Agent 1 (Discovery) using NVIDIA Nemotron-3 Super 120B (MoE) reasoning.
+    """
+    lang_info = LANGS.get(lang, {"name": "English", "native": "English"})
+    lang_name = lang_info["name"]
+
+    if NEMOTRON_CLIENT:
         try:
-            lang_name = LANGS.get(lang, {}).get("name", "English")
-            system_prompt = f"""You are Agent 1 (Discovery Agent) of NARMADA, an AI-driven voice platform mapping rural/SC livelihoods to NSQF skilling programs under PM-AJAY.
-Your task:
+            system_prompt = f"""You are Agent 1 (Discovery Agent) of NARMADA, powered by NVIDIA Nemotron-3 Super 120B reasoning, mapping rural and informal livelihoods to NSQF skilling programs under PM-AJAY.
+
+Your Responsibilities:
 1. Speak in {lang_name} warmly, simply, and empathetically for low-literacy citizens.
-2. Ask only ONE short follow-up question per turn if vital info is missing (e.g., tools used or years of experience).
-3. Extract structured work profile facts in English: activities, tools, frequency, experience, communication signal notes.
-4. Set enough=true once you understand their core activity, tools, and approximate experience.
+2. Ask only ONE short follow-up question per turn if vital info is missing (e.g. tools used or years of experience).
+3. Reason over the user's vernacular voice message and extract structured work profile facts in English: domain, activities, tools, frequency, experience, communication signal.
+4. Set enough=true once you have identified their primary activity, tools/materials, and experience.
 
 Current Profile: {json.dumps(current_profile)}
+
 Return STRICT JSON ONLY:
 {{
   "reply": "Warm 1-2 sentence response/question in {lang_name}",
   "profile": {{
-    "domain": "e.g. Dairy / Tailoring / Electronics / Food Processing",
+    "domain": "e.g. Dairy / Tailoring / Electronics / Food Processing / Solar PV",
     "activities": ["list of concrete tasks"],
     "tools": ["list of tools/equipment"],
     "frequency": "Daily / Seasonal / Part-time",
-    "experience": "e.g. 5 years",
+    "experience": "e.g. 4 years",
     "communication": "Brief note on citizen confidence and articulation clarity"
   }},
   "enough": true/false
 }}"""
-            res = OPENAI_CLIENT.chat.completions.create(
-                model=CHAT_MODEL,
-                temperature=0.3,
-                response_format={"type": "json_object"},
+            res = NEMOTRON_CLIENT.chat.completions.create(
+                model=NEMOTRON_MODEL,
+                temperature=0.2,
+                max_tokens=2048,
                 messages=[{"role": "system", "content": system_prompt}] + history
             )
-            data = json.loads(res.choices[0].message.content)
-            return data
+            raw_content = res.choices[0].message.content
+            parsed = clean_json_response(raw_content)
+            
+            if parsed and "reply" in parsed and "profile" in parsed:
+                # Localize reply with Riva Translate if language is not English and reply was in English
+                reply_text = parsed["reply"]
+                if lang != "en-IN" and not any(ord(c) > 127 for c in reply_text):
+                    reply_text = translate_with_riva(reply_text, src_lang="en-IN", target_lang=lang)
+                    parsed["reply"] = reply_text
+                return parsed
         except Exception as e:
-            print(f"[Warning] OpenAI Discovery Agent error: {e}. Utilizing built-in Indic NLP agent.")
+            print(f"[Warning] Nemotron Discovery Agent error: {e}. Utilizing built-in Indic NLP agent.")
 
     return analyze_profile_heuristic(history, lang)
 
+# ----------------- NVIDIA Nemotron-3 Grounded Guidance Agent (Agent 2) -----------------
 def call_guidance_agent(profile, lang, qp_matches, rules):
-    lang_name = LANGS.get(lang, {}).get("name", "English")
+    """
+    Executes Agent 2 (Guidance & Mentoring) using NVIDIA Nemotron-3 Super 120B reasoning and Riva Translate.
+    """
+    lang_info = LANGS.get(lang, {"name": "English", "native": "English"})
+    lang_name = lang_info["name"]
     
-    # If OpenAI client is available, run deep LLM synthesis
-    if OPENAI_CLIENT:
+    if NEMOTRON_CLIENT:
         try:
             ctx = "### MATCHED NSQF QUALIFICATION PACKS:\n"
             for qp in qp_matches:
@@ -608,15 +784,15 @@ def call_guidance_agent(profile, lang, qp_matches, rules):
             for r in rules:
                 ctx += f"[{r['code']}] {r['title']}: {r['body']}\n"
                 
-            system_prompt = f"""You are Agent 2 (Guidance & Mentoring Agent) of NARMADA.
+            system_prompt = f"""You are Agent 2 (Guidance & Mentoring Agent) of NARMADA, powered by NVIDIA Nemotron-3 Super 120B.
 Recommend the single best-fit NSQF Qualification Pack from the provided documents that recognizes what this citizen already knows and elevates their livelihood under PM-AJAY GIA.
 Every recommendation MUST cite the exact QP Code and explain the deterministic PM-AJAY eligibility.
-All explanations must be respectful, inspiring, and written in {lang_name}.
+Provide the why, eligibility, next step, and spoken explanation in {lang_name}.
 
 Context Documents:
 {ctx}
 
-Return STRICT JSON:
+Return STRICT JSON ONLY:
 {{
   "code": "Exact QP Code from context",
   "title": "Exact Title",
@@ -633,15 +809,18 @@ Return STRICT JSON:
   "alternatives": [{{"code": "string", "title": "string", "sector": "string"}}],
   "spoken": "3-4 crystal clear, comforting, empowering sentences in {lang_name} to be read aloud via voice synthesis."
 }}"""
-            res = OPENAI_CLIENT.chat.completions.create(
-                model=CHAT_MODEL,
+            res = NEMOTRON_CLIENT.chat.completions.create(
+                model=NEMOTRON_MODEL,
                 temperature=0.2,
-                response_format={"type": "json_object"},
+                max_tokens=3000,
                 messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": json.dumps(profile)}]
             )
-            return json.loads(res.choices[0].message.content)
+            raw_content = res.choices[0].message.content
+            parsed = clean_json_response(raw_content)
+            if parsed and "code" in parsed and "spoken" in parsed:
+                return parsed
         except Exception as e:
-            print(f"[Warning] OpenAI Guidance Agent error: {e}. Utilizing built-in deterministic guidance engine.")
+            print(f"[Warning] Nemotron Guidance Agent error: {e}. Utilizing built-in deterministic guidance engine.")
 
     # High-fidelity Deterministic Guidance Engine Fallback
     top_qp = qp_matches[0] if qp_matches else None
@@ -673,7 +852,6 @@ Return STRICT JSON:
             "sector": alt.get("sector", "")
         })
 
-    # Language-aware spoken text generator
     spoken_map = {
         "en-IN": f"Based on your daily experience in {profile.get('domain', 'your work')}, we have matched you to {top_qp['title']} at NSQF Level {top_qp['level']}. Under the PM-AJAY scheme, your entire training is 100% free and you are eligible for tool kit support up to ₹15,000. Please bring your Aadhaar card to the nearest Kaushal Kendra to register.",
         "hi-IN": f"आपके {profile.get('domain', 'दैनिक कार्य')} के अनुभव के आधार पर, आपको NSQF स्तर {top_qp['level']} के अंतर्गत '{top_qp['title']}' से जोड़ा गया है। PM-AJAY योजना के तहत आपका पूरा प्रशिक्षण बिल्कुल मुफ्त है और आपको ₹15,000 तक की टूलकिट सहायता मिलेगी। कृपया अपने आधार कार्ड के साथ नजदीकी कौशल केंद्र पर जाएं।",
@@ -717,6 +895,90 @@ Return STRICT JSON:
 def home():
     return render_template("index.html", langs=LANGS)
 
+@app.get("/api/models")
+def get_model_info():
+    """
+    Returns active AI model configuration and status for all three separate models.
+    """
+    return jsonify({
+        "provider": "NVIDIA AI Foundation Models (NIM / Riva)",
+        "models": {
+            "speech_to_text": {
+                "name": "NVIDIA Parakeet ASR",
+                "model_id": PARAKEET_ASR_MODEL,
+                "server": PARAKEET_ASR_SERVER,
+                "connected": bool(RIVA_ASR_SERVICE) or bool(PARAKEET_API_KEY),
+                "key_configured": bool(PARAKEET_API_KEY)
+            },
+            "reasoning_generation": {
+                "name": "NVIDIA Nemotron-3 Super 120B",
+                "model_id": NEMOTRON_MODEL,
+                "endpoint": NEMOTRON_BASE_URL,
+                "connected": bool(NEMOTRON_CLIENT),
+                "key_configured": bool(NEMOTRON_API_KEY)
+            },
+            "text_translation": {
+                "name": "NVIDIA Riva-Translate-4B-Instruct-v2",
+                "model_id": RIVA_TRANSLATE_MODEL,
+                "endpoint": RIVA_TRANSLATE_BASE_URL,
+                "connected": bool(RIVA_TRANSLATE_CLIENT),
+                "key_configured": bool(RIVA_TRANSLATE_API_KEY)
+            }
+        },
+        "all_connected": bool(NEMOTRON_CLIENT and (RIVA_TRANSLATE_CLIENT or NEMOTRON_CLIENT))
+    })
+
+@app.post("/api/transcribe")
+def transcribe():
+    """
+    Endpoint for speech-to-text transcription using NVIDIA Parakeet ASR.
+    Accepts multipart audio file or raw audio with optional language code.
+    """
+    lang = request.form.get("lang") or request.args.get("lang") or "en-IN"
+    
+    audio_file = request.files.get("audio") or request.files.get("file")
+    transcript = None
+    
+    if audio_file:
+        audio_bytes = audio_file.read()
+        transcript = transcribe_with_parakeet(audio_bytes, lang_code=lang)
+    
+    if not transcript:
+        # If no audio or audio parsing returned empty, return fallback/text echo
+        fallback_text = request.form.get("text") or request.args.get("text") or ""
+        transcript = fallback_text
+
+    # Optionally provide English translation via Riva Translate if Indic
+    translated = transcript
+    if transcript and lang != "en-IN":
+        translated = translate_with_riva(transcript, src_lang=lang, target_lang="en-IN")
+
+    return jsonify({
+        "transcript": transcript,
+        "translated": translated,
+        "model": PARAKEET_ASR_MODEL,
+        "lang": lang
+    })
+
+@app.post("/api/translate")
+def translate_endpoint():
+    """
+    Endpoint for text translation using NVIDIA Riva-Translate-4B-Instruct-v2.
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    text = data.get("text", "")
+    src_lang = data.get("src_lang", "en-IN")
+    target_lang = data.get("target_lang", "hi-IN")
+    
+    translated_text = translate_with_riva(text, src_lang=src_lang, target_lang=target_lang)
+    return jsonify({
+        "original": text,
+        "translated": translated_text,
+        "src_lang": src_lang,
+        "target_lang": target_lang,
+        "model": RIVA_TRANSLATE_MODEL
+    })
+
 @app.post("/api/start")
 def start():
     data = request.get_json(force=True, silent=True) or {}
@@ -726,7 +988,6 @@ def start():
         
     sid = uuid.uuid4().hex
     
-    # Explicit Consent Record (DPDP Act 2023)
     consent_meta = {
         "consented": True,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -767,14 +1028,19 @@ def start():
         sid,
         "CONSENT_GRANTED_AND_SESSION_START",
         datetime.now(timezone.utc).isoformat(),
-        json.dumps({"lang": lang, "purpose": consent_meta["purpose"]})
+        json.dumps({"lang": lang, "purpose": consent_meta["purpose"], "ai_models": {"stt": PARAKEET_ASR_MODEL, "llm": NEMOTRON_MODEL, "nmt": RIVA_TRANSLATE_MODEL}})
     ))
     
     return jsonify({
         "sid": sid,
         "reply": greeting,
         "lang": lang,
-        "profile": initial_profile
+        "profile": initial_profile,
+        "models": {
+            "stt": PARAKEET_ASR_MODEL,
+            "llm": NEMOTRON_MODEL,
+            "nmt": RIVA_TRANSLATE_MODEL
+        }
     })
 
 @app.post("/api/chat")
@@ -797,7 +1063,7 @@ def chat():
     if message:
         history.append({"role": "user", "content": message})
         
-    # Execute Agent 1 (Discovery Agent)
+    # Execute Agent 1 (Discovery Agent via NVIDIA Nemotron-3-Super-120B)
     discovery_out = call_discovery_agent(history, lang, current_profile)
     
     assistant_reply = discovery_out.get("reply", "Please tell me more about your work.")
@@ -814,7 +1080,8 @@ def chat():
         "reply": assistant_reply,
         "profile": updated_profile,
         "enough": is_enough,
-        "history_count": len(history)
+        "history_count": len(history),
+        "model": NEMOTRON_MODEL
     })
 
 @app.post("/api/recommend")
@@ -837,41 +1104,39 @@ def recommend():
     qp_rows = [r for r in all_kb_rows if r["kind"] == "qp"]
     rule_rows = [r for r in all_kb_rows if r["kind"] == "rule"]
     
-    query_text = f"{profile.get('domain', '')} {' '.join(profile.get('activities', []))} {' '.join(profile.get('tools', []))} {' '.join([m['content'] for m in history if m.get('role')=='user'])}"
+    user_texts = " ".join([m['content'] for m in history if m.get('role') == 'user'])
+    # If user message is in Indic language, translate to English for RAG matching
+    if lang != "en-IN" and user_texts:
+        translated_user_text = translate_with_riva(user_texts, src_lang=lang, target_lang="en-IN")
+    else:
+        translated_user_text = user_texts
+
+    query_text = f"{profile.get('domain', '')} {' '.join(profile.get('activities', []))} {' '.join(profile.get('tools', []))} {translated_user_text}"
     
-    # Check if we can use dense embeddings or TF-IDF sparse similarity
-    dense_query_emb = embed_texts([query_text])[0] if OPENAI_CLIENT else None
+    # High-accuracy Token Weighted similarity
+    all_texts = [f"{q['title']} {q['sector']} {q['body']}" for q in qp_rows]
+    vocab, doc_freqs = compute_term_freqs(all_texts)
+    N = len(qp_rows)
+    
+    query_tokens = simple_tokenize(query_text)
+    query_vec = tfidf_vector(query_tokens, vocab, N, vocab)
     
     scored_qps = []
-    if dense_query_emb:
-        for qp in qp_rows:
-            emb = json.loads(qp["emb"]) if isinstance(qp["emb"], str) else qp.get("emb")
-            score = dense_cosine(dense_query_emb, emb) if emb else 0.0
-            scored_qps.append((score, qp))
-    else:
-        # High-accuracy Token Weighted / BM25-style similarity
-        all_texts = [f"{q['title']} {q['sector']} {q['body']}" for q in qp_rows]
-        vocab, doc_freqs = compute_term_freqs(all_texts)
-        N = len(qp_rows)
+    for idx, qp in enumerate(qp_rows):
+        doc_tokens = simple_tokenize(f"{qp['title']} {qp['sector']} {qp['body']}")
+        doc_vec = tfidf_vector(doc_tokens, vocab, N, vocab)
+        score = sparse_cosine(query_vec, doc_vec)
         
-        query_tokens = simple_tokenize(query_text)
-        query_vec = tfidf_vector(query_tokens, vocab, N, vocab)
+        # Boost score if suggested_qp matches
+        if profile.get("suggested_qp") and qp["code"] == profile.get("suggested_qp"):
+            score += 0.4
+            
+        scored_qps.append((score, qp))
         
-        for idx, qp in enumerate(qp_rows):
-            doc_tokens = simple_tokenize(f"{qp['title']} {qp['sector']} {qp['body']}")
-            doc_vec = tfidf_vector(doc_tokens, vocab, N, vocab)
-            score = sparse_cosine(query_vec, doc_vec)
-            
-            # Boost score if suggested_qp matches
-            if profile.get("suggested_qp") and qp["code"] == profile.get("suggested_qp"):
-                score += 0.4
-                
-            scored_qps.append((score, qp))
-            
     scored_qps.sort(key=lambda x: -x[0])
     top_matches = [item[1] for item in scored_qps[:4]]
     
-    # Execute Agent 2 (Guidance & Mentorship Agent)
+    # Execute Agent 2 (Guidance & Mentorship Agent via NVIDIA Nemotron-3-Super-120B)
     rec_result = call_guidance_agent(profile, lang, top_matches, rule_rows)
     
     # Cryptographic Audit Hash for DPDP & Administrative Integrity
@@ -880,6 +1145,8 @@ def recommend():
     rec_result["audit_hash"] = audit_hash
     rec_result["generated_at"] = datetime.now(timezone.utc).strftime("%d %B %Y, %I:%M %p UTC")
     rec_result["beneficiary_id"] = f"PMAJAY-SC-{sid[:8].upper()}"
+    rec_result["model"] = NEMOTRON_MODEL
+    rec_result["nmt_model"] = RIVA_TRANSLATE_MODEL
     
     execute_query("""
         UPDATE sessions SET rec=%s, audit_hash=%s WHERE id=%s
@@ -893,7 +1160,7 @@ def recommend():
         sid,
         "RECOMMENDATION_GENERATED_AND_HASHED",
         datetime.now(timezone.utc).isoformat(),
-        json.dumps({"qp_code": rec_result["code"], "audit_hash": audit_hash})
+        json.dumps({"qp_code": rec_result["code"], "audit_hash": audit_hash, "model": NEMOTRON_MODEL})
     ))
     
     return jsonify(rec_result)
@@ -940,14 +1207,18 @@ def mentor_checkin():
     }
     
     week_key = week if week in [1, 2, 3] else 1
-    spoken_text = mentor_responses[week_key].get(lang, mentor_responses[week_key]["en-IN"])
+    spoken_text = mentor_responses[week_key].get(lang)
+    if not spoken_text:
+        base_en = mentor_responses[week_key]["en-IN"]
+        spoken_text = translate_with_riva(base_en, src_lang="en-IN", target_lang=lang)
     
     mentor_log = {
         "week": week,
         "status": user_status,
         "feedback": user_feedback,
         "mentor_reply": spoken_text,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "model": NEMOTRON_MODEL
     }
     
     existing_mentor_hist = json.loads(session["mentor_history"]) if isinstance(session["mentor_history"], str) else (session["mentor_history"] or [])
@@ -961,7 +1232,8 @@ def mentor_checkin():
         "week": week,
         "mentor_reply": spoken_text,
         "next_milestone": "NCVET Practical Assessment & Tool Kit Handover",
-        "mentor_history": existing_mentor_hist
+        "mentor_history": existing_mentor_hist,
+        "model": NEMOTRON_MODEL
     })
 
 # ----------------- State Skilling Officer (Admin / Verification) Endpoints -----------------
@@ -995,7 +1267,7 @@ def officer_beneficiaries():
 def officer_action():
     data = request.get_json(force=True, silent=True) or {}
     sid = data.get("sid")
-    action = data.get("action", "approved") # 'approved', 'flagged', 'rejected'
+    action = data.get("action", "approved")
     notes = data.get("notes", "")
     
     if not sid:
@@ -1025,12 +1297,16 @@ def stats():
     appr_row = execute_query("SELECT count(*) as approved FROM sessions WHERE status='approved'", fetch="one") or {"approved": 0}
     dpdp_row = execute_query("SELECT count(*) as dpdp_logs FROM dpdp_logs", fetch="one") or {"dpdp_logs": 0}
     
-    # Official PM-AJAY FY23-24 Benchmarks (From SIH26097 Specifications)
     return jsonify({
         "active_beneficiaries_mapped": sess_row.get("total_sessions", 0),
         "nsqf_recommendations_issued": rec_row.get("total_recs", 0),
         "officer_approved_grants": appr_row.get("approved", 0),
         "dpdp_trust_verifications": dpdp_row.get("dpdp_logs", 0),
+        "models": {
+            "speech_to_text": PARAKEET_ASR_MODEL,
+            "reasoning_generating": NEMOTRON_MODEL,
+            "text_translation": RIVA_TRANSLATE_MODEL
+        },
         "national_benchmarks": {
             "pm_ajay_sc_beneficiaries_fy23_24": 70934,
             "skill_projects_approved_gia": 913,

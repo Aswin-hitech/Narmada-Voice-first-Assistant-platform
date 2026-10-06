@@ -3,3 +3,5 @@ psycopg2-binary
 openai
 python-dotenv
 gunicorn
+requests
+nvidia-riva-client

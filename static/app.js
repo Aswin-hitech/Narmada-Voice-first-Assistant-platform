@@ -139,8 +139,10 @@ function updateAudioSpeed() {
     }
 }
 
-// ----------------- Speech Recognition & Audio Waveform -----------------
+// ----------------- Speech Recognition & Audio Waveform (Parakeet STT + Web Speech) -----------------
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let mediaRecorder = null;
+let audioChunks = [];
 
 function setupAudioVisualizer(stream) {
     try {
@@ -193,52 +195,97 @@ function toggleVoiceRecording() {
     }
 }
 
-function startVoiceRecording() {
-    if (!SpeechRecognition) {
-        alert("Voice recognition requires Chrome, Edge, or an Android browser. You can still type your response.");
-        return;
+async function startVoiceRecording() {
+    isRecording = true;
+    audioChunks = [];
+    $("btn-mic").classList.add("recording");
+    $("btn-mic").querySelector(".mic-label").textContent = "Stop";
+    $("waveform-container").hidden = false;
+
+    // 1. Capture Microphone stream for Oscilloscope & MediaRecorder (Parakeet ASR)
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            micMediaStream = stream;
+            setupAudioVisualizer(stream);
+
+            if (window.MediaRecorder) {
+                try {
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = e => {
+                        if (e.data && e.data.size > 0) {
+                            audioChunks.push(e.data);
+                        }
+                    };
+                    mediaRecorder.onstop = async () => {
+                        if (audioChunks.length > 0) {
+                            const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                            const currentVal = $("user-input-field").value.trim();
+                            if (!currentVal) {
+                                // Send to Parakeet STT backend
+                                try {
+                                    const formData = new FormData();
+                                    formData.append("audio", audioBlob, "speech.webm");
+                                    formData.append("lang", $("lang-select").value || "en-IN");
+                                    const res = await fetch("/api/transcribe", { method: "POST", body: formData }).then(r => r.json());
+                                    if (res.transcript && res.transcript.trim()) {
+                                        $("user-input-field").value = res.transcript.trim();
+                                        sendMessage();
+                                    }
+                                } catch (e) {
+                                    console.warn("Parakeet ASR backend transcribe error:", e);
+                                }
+                            }
+                        }
+                    };
+                    mediaRecorder.start(250);
+                } catch (e) {
+                    console.warn("MediaRecorder init notice:", e);
+                }
+            }
+        } catch (err) {
+            console.warn("Microphone access error:", err);
+        }
     }
 
-    try {
-        recognition = new SpeechRecognition();
-        recognition.lang = $("lang-select").value || "en-IN";
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+    // 2. Parallel Web Speech API for real-time live interim feedback
+    if (SpeechRecognition) {
+        try {
+            recognition = new SpeechRecognition();
+            recognition.lang = $("lang-select").value || "en-IN";
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 1;
 
-        recognition.onstart = () => {
-            isRecording = true;
-            $("btn-mic").classList.add("recording");
-            $("btn-mic").querySelector(".mic-label").textContent = "Stop";
-            $("waveform-container").hidden = false;
+            recognition.onresult = event => {
+                let finalTranscript = "";
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        $("user-input-field").value = event.results[i][0].transcript;
+                    }
+                }
+                if (finalTranscript) {
+                    $("user-input-field").value = finalTranscript;
+                    stopVoiceRecording();
+                    sendMessage();
+                }
+            };
 
-            // Start Audio Context for Oscilloscope
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-                    micMediaStream = stream;
-                    setupAudioVisualizer(stream);
-                }).catch(() => {});
-            }
-        };
+            recognition.onerror = event => {
+                console.warn("Speech recognition notice:", event.error);
+            };
 
-        recognition.onresult = event => {
-            const transcript = event.results[0][0].transcript;
-            $("user-input-field").value = transcript;
-            sendMessage();
-        };
+            recognition.onend = () => {
+                if (isRecording) {
+                    stopVoiceRecording();
+                }
+            };
 
-        recognition.onerror = event => {
-            console.error("Speech recognition error:", event.error);
-            stopVoiceRecording();
-        };
-
-        recognition.onend = () => {
-            stopVoiceRecording();
-        };
-
-        recognition.start();
-    } catch (err) {
-        console.error("Failed to start voice recognition", err);
-        stopVoiceRecording();
+            recognition.start();
+        } catch (err) {
+            console.warn("Speech recognition start notice:", err);
+        }
     }
 }
 
@@ -246,6 +293,10 @@ function stopVoiceRecording() {
     isRecording = false;
     if (recognition) {
         try { recognition.stop(); } catch (e) {}
+        recognition = null;
+    }
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        try { mediaRecorder.stop(); } catch (e) {}
     }
     $("btn-mic").classList.remove("recording");
     $("btn-mic").querySelector(".mic-label").textContent = "Speak";

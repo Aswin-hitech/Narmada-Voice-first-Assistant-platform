@@ -36,8 +36,16 @@ Under the **Grants-in-Aid (GIA)** component of **PM-AJAY (Pradhan Mantri Anusuch
                                                   │
                                                   ▼
 +---------------------------------------------------------------------------------------------------+
-|                                   AGENT 1 — DISCOVERY AGENT                                       |
-|  • Speech Recognition (Bhashini / Saaras v3 / Web Speech API)                                     |
+|                                   SPEECH-TO-TEXT (PARAKEET ASR)                                   |
+|  • NVIDIA Parakeet ASR (nvidia/parakeet-tdt-0.6b-v2 / Riva Cloud ASR)                            |
+|  • Real-time Web Audio API Oscilloscope Visualizer + Live Vernacular Audio Streaming              |
++---------------------------------------------------------------------------------------------------+
+                                                  │
+                                                  ▼
++---------------------------------------------------------------------------------------------------+
+|                     AGENT 1 — DISCOVERY AGENT (NVIDIA NEMOTRON-3 SUPER 120B)                      |
+|  • Reasoning & Extraction: NVIDIA Nemotron-3-Super-120B-A12B (MoE Architecture)                   |
+|  • Machine Translation: NVIDIA Riva-Translate-4B-Instruct-v2 (37+ Languages)                      |
 |  • Work Profile Extraction (Activities, Tools, Experience, Frequency)                            |
 |  • Communication-Confidence Signal Analysis (Clarity, Fluency & Articulation Score)                |
 +---------------------------------------------------------------------------------------------------+
@@ -47,15 +55,16 @@ Under the **Grants-in-Aid (GIA)** component of **PM-AJAY (Pradhan Mantri Anusuch
 |                               HYBRID RAG & KNOWLEDGE RETRIEVAL                                    |
 |  • 25+ Verified NCVET NSQF Qualification Packs (Agriculture, Apparel, Solar, FoodTech, etc.)       |
 |  • PM-AJAY GIA Statutory Rules & Tool Kit Guidelines (₹15,000 subsidy, 100% grant)                |
-|  • Dense Vector (OpenAI/BGE-M3) + Token-Weighted Indic Keyword Matching                           |
+|  • Semantic Indic Retrieval + Token-Weighted Domain Relevance                                     |
 +---------------------------------------------------------------------------------------------------+
                                                   │
                                                   ▼
 +---------------------------------------------------------------------------------------------------+
-|                                   AGENT 2 — GUIDANCE AGENT                                        |
-|  • Deterministic PM-AJAY Eligibility Verification                                                 |
+|                     AGENT 2 — GUIDANCE AGENT (NVIDIA NEMOTRON-3 SUPER 120B)                      |
+|  • Deep Synthesis with NVIDIA Nemotron-3-Super-120B-A12B                                          |
+|  • Deterministic PM-AJAY Eligibility Verification (Zero fee, ₹15,000 tool kit grant)             |
 |  • Grounded NSQF Qualification Mapping (Level 3-4 QP Code, Syllabus Modules, Wage Potential)      |
-|  • Spoken Native Audio Script Generation (TTS Playback in Native Dialect)                         |
+|  • Native Audio Script Generation & Translation via NVIDIA Riva-Translate-4B-Instruct-v2         |
 |  • SHA-256 Cryptographic Audit Hashing (DPDP Act 2023 Trust Layer)                                |
 +---------------------------------------------------------------------------------------------------+
                                                   │
@@ -126,11 +135,22 @@ pip install -r requirements.txt
 Copy `.env.example` to `.env` if you wish to use PostgreSQL or an OpenAI API key:
 
 ```env
-# Optional: If omitted, NARMADA runs seamlessly with SQLite + Local Semantic Engine
-OPENAI_API_KEY=your_openai_key_here
+# NVIDIA AI Foundation Models (NIM / build.nvidia.com)
+NVIDIA_API_KEY=nvapi-...
+NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
+
+# Reasoning & Generating LLM
+NEMOTRON_MODEL=nvidia/nemotron-3-super-120b-a12b
+
+# Text Translation Model
+RIVA_TRANSLATE_MODEL=nvidia/riva-translate-4b-instruct-v2
+
+# Speech-to-Text Model (Parakeet)
+PARAKEET_ASR_MODEL=nvidia/parakeet-tdt-0.6b-v2
+RIVA_ASR_SERVER=grpc.nvcf.nvidia.com:443
+
+# Optional PostgreSQL Database
 DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
-OPENAI_CHAT_MODEL=gpt-4o-mini
-OPENAI_EMBED_MODEL=text-embedding-3-small
 ```
 
 ### 4. Run the Application
