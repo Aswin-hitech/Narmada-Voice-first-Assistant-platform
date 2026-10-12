@@ -8,7 +8,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Cinzel:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     
     <!-- QRCode.js for generating verifiable Skilling Passport QR codes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -20,39 +20,39 @@
     <!-- Skip Link for Accessibility -->
     <a href="#main-content" class="skip-link">Skip to main content</a>
 
-    <!-- National Flag Tricolor Bar -->
-    <div class="tricolor-strip">
+    <!-- National Flag Tricolor Accent Bar -->
+    <div class="tricolor-strip" role="presentation">
         <div class="strip saffron"></div>
         <div class="strip white">
-            <span class="chakra-icon">☸</span>
+            <span class="chakra-icon" aria-hidden="true">☸</span>
         </div>
         <div class="strip green"></div>
     </div>
 
-    <!-- Government of India / Scheme Top Bar -->
+    <!-- Government of India Official Top Bar -->
     <aside class="gov-topbar" aria-label="Official Government Header">
         <div class="gov-container">
             <div class="gov-emblem-text">
-                <span class="gov-flag-icon">🇮🇳</span>
-                <span>Government of India • Ministry of Social Justice &amp; Empowerment</span>
-                <span class="pipe">|</span>
+                <span class="gov-flag-icon" aria-hidden="true">🇮🇳</span>
+                <span class="gov-ministry">Government of India • Ministry of Social Justice &amp; Empowerment</span>
+                <span class="pipe" aria-hidden="true">|</span>
                 <span class="scheme-badge">PM-AJAY GIA Component (SIH26097)</span>
             </div>
             <div class="gov-controls">
-                <span class="accessibility-group">
-                    <span class="control-label">Text Size:</span>
+                <div class="accessibility-group" aria-label="Accessibility Font Size Controls">
+                    <span class="control-label">Font:</span>
                     <button type="button" class="btn-text-size" onclick="adjustFontSize(-1)" title="Decrease Text Size" aria-label="Decrease Text Size">A-</button>
                     <button type="button" class="btn-text-size active" onclick="adjustFontSize(0)" title="Default Text Size" aria-label="Reset Text Size">A</button>
                     <button type="button" class="btn-text-size" onclick="adjustFontSize(1)" title="Increase Text Size" aria-label="Increase Text Size">A+</button>
-                </span>
+                </div>
                 <button type="button" class="btn-contrast" id="contrast-toggle" onclick="toggleHighContrast()" title="Toggle High Contrast Mode">
-                    <span class="contrast-icon">◐</span> High Contrast
+                    <span class="contrast-icon" aria-hidden="true">◐</span> High Contrast
                 </button>
             </div>
         </div>
     </aside>
 
-    <!-- Main Header & Branding -->
+    <!-- Main Header & Enterprise Branding -->
     <header class="main-header">
         <div class="header-container">
             <div class="brand-block">
@@ -60,19 +60,32 @@
                     <div class="emblem-inner">N</div>
                 </div>
                 <div class="brand-titles">
-                    <h1 class="brand-title">NARMADA</h1>
+                    <div class="brand-title-row">
+                        <h1 class="brand-title">NARMADA</h1>
+                        <span class="brand-pill">DPI Platform</span>
+                    </div>
                     <p class="brand-tagline">Native-language Aptitude Recognition &amp; Mentoring Architecture Driving Advancement</p>
                     <div class="brand-motto">“Right Voice. Right Skill. Right Livelihood. Deserving Opportunity.”</div>
                 </div>
             </div>
-            <div class="header-status-badge">
-                <span class="live-dot"></span>
-                <span>Dual-Agent AI • Parakeet ASR • Nemotron-3 Super 120B • Riva-Translate-4B • NSQF Grounded</span>
+
+            <!-- Multi-Model AI Stack HUD -->
+            <div class="header-ai-hud" aria-label="Active AI Engine Stack">
+                <div class="hud-label">
+                    <span class="live-dot" aria-hidden="true"></span>
+                    <span class="hud-status">AI ENGINE ACTIVE</span>
+                </div>
+                <div class="hud-chips">
+                    <span class="model-chip" title="Speech to Text Engine"><span class="chip-icon">🎙️</span> Parakeet ASR</span>
+                    <span class="model-chip" title="Reasoning & Guidance Engine"><span class="chip-icon">🧠</span> Nemotron-3 Super 120B</span>
+                    <span class="model-chip" title="Indic Translation Engine"><span class="chip-icon">🌐</span> Riva-Translate-4B</span>
+                    <span class="model-chip highlight" title="Standardized Skilling Framework"><span class="chip-icon">📜</span> NSQF NCVET</span>
+                </div>
             </div>
         </div>
 
         <!-- Role & View Navigation Tabs -->
-        <nav class="nav-tabs" aria-label="Platform Views">
+        <nav class="nav-tabs" aria-label="Platform Views Navigation">
             <div class="nav-container">
                 <button class="nav-tab active" data-tab="citizen-view" onclick="switchTab('citizen-view')">
                     <span class="tab-icon">🎙️</span> Citizen Voice Companion
@@ -81,27 +94,27 @@
                     <span class="tab-icon">🔄</span> Weekly Voice Mentor
                 </button>
                 <button class="nav-tab" data-tab="officer-view" onclick="switchTab('officer-view')">
-                    <span class="tab-icon">🏛️</span> State Skilling Officer Portal
+                    <span class="tab-icon">🏛️</span> State Officer Portal
                     <span class="officer-badge-count" id="pending-badge">0</span>
                 </button>
                 <button class="nav-tab" data-tab="kb-view" onclick="switchTab('kb-view')">
-                    <span class="tab-icon">📚</span> NSQF &amp; Scheme Knowledge Hub
+                    <span class="tab-icon">📚</span> NSQF Knowledge Hub
                 </button>
                 <button class="nav-tab" data-tab="impact-view" onclick="switchTab('impact-view')">
-                    <span class="tab-icon">📊</span> Impact &amp; National Metrics
+                    <span class="tab-icon">📊</span> Impact &amp; Metrics
                 </button>
             </div>
         </nav>
     </header>
 
-    <!-- DPDP Act Trust & Privacy Notification -->
-    <div class="dpdp-banner">
+    <!-- DPDP Act Trust & Privacy Notification Banner -->
+    <div class="dpdp-banner" role="region" aria-label="Data Protection Trust Notice">
         <div class="dpdp-container">
-            <span class="dpdp-icon">🔒</span>
+            <span class="dpdp-shield-icon" aria-hidden="true">🛡️</span>
             <div class="dpdp-text">
-                <strong>DPDP Act 2023 Compliant:</strong> Voice data is processed with explicit consent strictly for livelihood mapping under PM-AJAY GIA. Minimal retention, zero third-party ads, SHA-256 verifiable audit trails.
+                <strong>DPDP Act 2023 Compliant:</strong> Voice data processed under explicit consent strictly for PM-AJAY GIA livelihood mapping. Ephemeral in-memory audio processing, SHA-256 verifiable audit records.
             </div>
-            <button class="dpdp-details-btn" onclick="openPrivacyModal()">Privacy Trust Layer</button>
+            <button class="dpdp-details-btn" onclick="openPrivacyModal()">Privacy Trust Layer ↗</button>
         </div>
     </div>
 
@@ -112,59 +125,84 @@
         <section id="citizen-view" class="tab-content active" aria-labelledby="citizen-heading">
             <h2 id="citizen-heading" class="sr-only">Citizen Voice Assistant Interface</h2>
 
-            <!-- Quick Demo Voice Presets -->
+            <!-- Quick Demo Voice Presets Showcase -->
             <div class="demo-presets-card">
                 <div class="demo-header">
-                    <span class="sparkle-icon">✨</span>
-                    <strong>Live Demonstration Presets (One-Click Voice Ingestion):</strong>
-                    <span class="demo-sub">Test multilingual voice processing across regional livelihoods:</span>
+                    <div class="demo-title-group">
+                        <span class="sparkle-icon">✨</span>
+                        <strong>One-Click Regional Livelihood Scenarios:</strong>
+                    </div>
+                    <span class="demo-sub">Select any scenario to test instant multilingual voice ingestion, Nemotron-3 profiling, and NSQF matching:</span>
                 </div>
                 <div class="demo-buttons-grid">
-                    <button class="btn-demo" onclick="loadPreset('dairy-ta')">
-                        <span class="flag">🇮🇳 தமிழ்</span>
-                        <span class="title">Dairy Farmer (Tamil)</span>
+                    <button type="button" class="btn-demo" onclick="loadPreset('dairy-ta')" title="Test Tamil Dairy Farmer Scenario">
+                        <div class="demo-card-top">
+                            <span class="trade-icon">🐮</span>
+                            <span class="flag-chip">🇮🇳 தமிழ்</span>
+                        </div>
+                        <span class="title">Dairy Farmer</span>
                         <span class="desc">"நான் இரண்டு எருமை மாடுகளை வளர்த்து..."</span>
                     </button>
-                    <button class="btn-demo" onclick="loadPreset('tailor-hi')">
-                        <span class="flag">🇮🇳 हिन्दी</span>
-                        <span class="title">Garment Tailor (Hindi)</span>
+                    <button type="button" class="btn-demo" onclick="loadPreset('tailor-hi')" title="Test Hindi Garment Tailor Scenario">
+                        <div class="demo-card-top">
+                            <span class="trade-icon">🧵</span>
+                            <span class="flag-chip">🇮🇳 हिन्दी</span>
+                        </div>
+                        <span class="title">Garment Tailor</span>
                         <span class="desc">"मैं 4 साल से सिलाई मशीन पर कपड़े..."</span>
                     </button>
-                    <button class="btn-demo" onclick="loadPreset('electrician-te')">
-                        <span class="flag">🇮🇳 తెలుగు</span>
-                        <span class="title">Electrician (Telugu)</span>
+                    <button type="button" class="btn-demo" onclick="loadPreset('electrician-te')" title="Test Telugu Electrician Scenario">
+                        <div class="demo-card-top">
+                            <span class="trade-icon">⚡</span>
+                            <span class="flag-chip">🇮🇳 తెలుగు</span>
+                        </div>
+                        <span class="title">Electrician &amp; Repair</span>
                         <span class="desc">"నేను ఇళ్లలో వైరింగ్, ఫ్యాన్లు రిపేర్ చేస్తాను..."</span>
                     </button>
-                    <button class="btn-demo" onclick="loadPreset('food-bn')">
-                        <span class="flag">🇮🇳 বাংলা</span>
-                        <span class="title">Food Processor (Bengali)</span>
+                    <button type="button" class="btn-demo" onclick="loadPreset('food-bn')" title="Test Bengali Food Processor Scenario">
+                        <div class="demo-card-top">
+                            <span class="trade-icon">🥫</span>
+                            <span class="flag-chip">🇮🇳 বাংলা</span>
+                        </div>
+                        <span class="title">Food Processor</span>
                         <span class="desc">"আমি আচার ও পাঁপড় বানিয়ে বাজারে বিক্রি করি..."</span>
                     </button>
-                    <button class="btn-demo" onclick="loadPreset('organic-mr')">
-                        <span class="flag">🇮🇳 मराठी</span>
-                        <span class="title">Organic Farmer (Marathi)</span>
+                    <button type="button" class="btn-demo" onclick="loadPreset('organic-mr')" title="Test Marathi Organic Farmer Scenario">
+                        <div class="demo-card-top">
+                            <span class="trade-icon">🌱</span>
+                            <span class="flag-chip">🇮🇳 मराठी</span>
+                        </div>
+                        <span class="title">Organic Farmer</span>
                         <span class="desc">"मी शेतात सेंद्रिय खत व जिवामृत वापरून..."</span>
                     </button>
-                    <button class="btn-demo" onclick="loadPreset('solar-en')">
-                        <span class="flag">🇮🇳 English</span>
-                        <span class="title">Solar Installer (English)</span>
+                    <button type="button" class="btn-demo" onclick="loadPreset('solar-en')" title="Test English Solar PV Installer Scenario">
+                        <div class="demo-card-top">
+                            <span class="trade-icon">☀️</span>
+                            <span class="flag-chip">🇮🇳 English</span>
+                        </div>
+                        <span class="title">Solar PV Installer</span>
                         <span class="desc">"I install rooftop solar panels and water pumps..."</span>
                     </button>
                 </div>
             </div>
 
+            <!-- Citizen 2-Column Responsive Workspace -->
             <div class="citizen-layout">
-                <!-- Left Column: Voice Interaction & Conversation -->
+                
+                <!-- Left Column: Voice Studio & Conversation Stream -->
                 <div class="interaction-column">
                     <div class="card chat-card">
                         <div class="card-header-flex">
                             <div class="header-title-group">
-                                <h3>🗣️ Voice Assistance Studio</h3>
-                                <p class="card-desc">Speak naturally in your native language about your daily work and tools.</p>
+                                <div class="studio-badge-row">
+                                    <h3>🗣️ Voice Assistance Studio</h3>
+                                    <span class="studio-status-chip">Live Microphone Ready</span>
+                                </div>
+                                <p class="card-desc">Speak naturally in your vernacular language about your daily trade, tools, and experience.</p>
                             </div>
                             <div class="lang-selector-group">
                                 <label for="lang-select">Language:</label>
-                                <select id="lang-select" class="form-select">
+                                <select id="lang-select" class="form-select" aria-label="Select Voice Language">
                                     {% for code, info in langs.items() %}
                                     <option value="{{ code }}" {% if code == 'en-IN' %}selected{% endif %}>{{ info.native }} ({{ info.name }})</option>
                                     {% endfor %}
@@ -172,62 +210,91 @@
                             </div>
                         </div>
 
-                        <!-- Chat / Voice Stream -->
-                        <div id="chat-stream" class="chat-stream" role="log" aria-live="polite" aria-label="Conversation history">
+                        <!-- Chat & Voice Dialogue Stream -->
+                        <div id="chat-stream" class="chat-stream" role="log" aria-live="polite" aria-label="Voice conversation log">
                             <div class="welcome-box" id="welcome-box">
-                                <div class="welcome-icon">🎙️</div>
+                                <div class="welcome-icon-ring">
+                                    <span class="welcome-icon">🎙️</span>
+                                </div>
                                 <h4>Welcome to NARMADA Voice Companion</h4>
-                                <p>Select your language above and click <strong>"Begin Voice Assistance"</strong> to start. You can speak or type freely.</p>
+                                <p>Select your native language above and click <strong>"Begin Voice Assistance"</strong> or pick one of the live scenarios above to start.</p>
+                                <div class="welcome-features">
+                                    <span>✓ Zero Typing Needed</span>
+                                    <span>✓ Regional Dialect Support</span>
+                                    <span>✓ 100% Free PM-AJAY Skilling</span>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Audio Oscilloscope Waveform Visualizer -->
                         <div class="waveform-container" id="waveform-container" hidden>
+                            <div class="waveform-header">
+                                <div class="recording-status">
+                                    <span class="recording-pulse"></span>
+                                    <span id="recording-status-text">Listening to your voice... Speak now</span>
+                                </div>
+                                <span class="waveform-engine-tag">Parakeet ASR • 16kHz Stream</span>
+                            </div>
                             <canvas id="waveform-canvas" width="600" height="48"></canvas>
-                            <div class="recording-status">
-                                <span class="recording-pulse"></span>
-                                <span id="recording-status-text">Listening to your voice... Speak now</span>
+                        </div>
+
+                        <!-- Audio Player & Voice Output Bar -->
+                        <div class="audio-player-bar" id="audio-player-bar" hidden>
+                            <span class="audio-label">🔊 Voice Feedback:</span>
+                            <div class="audio-ctrl-buttons">
+                                <button type="button" class="btn-audio-ctrl" id="btn-replay-audio" onclick="replayLastSpeech()" title="Replay Spoken Voice">
+                                    <span>🔁</span> Replay Voice
+                                </button>
+                                <button type="button" class="btn-audio-ctrl stop" id="btn-stop-audio" onclick="stopSpeech()" title="Stop Voice Playback">
+                                    <span>⏹️</span> Stop
+                                </button>
+                            </div>
+                            <div class="speed-control-group">
+                                <label for="audio-speed-select" class="speed-label">Speed:</label>
+                                <select id="audio-speed-select" class="form-select-sm" onchange="updateAudioSpeed()">
+                                    <option value="0.85">0.85x (Slow)</option>
+                                    <option value="1.0" selected>1.0x (Normal)</option>
+                                    <option value="1.15">1.15x (Fast)</option>
+                                </select>
                             </div>
                         </div>
 
-                        <!-- Audio Player Controls -->
-                        <div class="audio-player-bar" id="audio-player-bar" hidden>
-                            <span class="audio-label">🔊 Voice Output:</span>
-                            <button type="button" class="btn-audio-ctrl" id="btn-replay-audio" onclick="replayLastSpeech()" title="Replay Audio">🔁 Replay Voice</button>
-                            <button type="button" class="btn-audio-ctrl" id="btn-stop-audio" onclick="stopSpeech()" title="Stop Audio">⏹️ Stop</button>
-                            <label class="speed-label">Speed:
-                                <select id="audio-speed-select" onchange="updateAudioSpeed()">
-                                    <option value="0.85">0.85x (Slower)</option>
-                                    <option value="1.0" selected>1.0x (Normal)</option>
-                                    <option value="1.15">1.15x (Faster)</option>
-                                </select>
-                            </label>
-                        </div>
-
-                        <!-- Input Control Dock -->
+                        <!-- Voice & Text Input Dock -->
                         <div class="input-control-dock">
+                            <!-- DPDP Act 2023 Explicit Consent Gate -->
+                            <div class="consent-gate-box" id="consent-gate-box">
+                                <label class="consent-checkbox-label">
+                                    <input type="checkbox" id="user-consent-checkbox" checked>
+                                    <span><strong>Explicit Consent (DPDP Act 2023):</strong> I hereby consent to recording and processing my spoken work profile for PM-AJAY GIA livelihood mapping and NSQF skilling recommendation.</span>
+                                </label>
+                            </div>
+
                             <button type="button" class="btn btn-primary btn-start-session" id="btn-start" onclick="startSession()">
-                                <span>🚀 Begin Voice Assistance</span>
+                                <span class="btn-icon">🚀</span>
+                                <span>Begin Voice Assistance</span>
                             </button>
 
                             <div class="active-input-row" id="active-input-row" hidden>
-                                <button type="button" class="btn-mic" id="btn-mic" onclick="toggleVoiceRecording()" title="Click to Speak" aria-label="Microphone Voice Input">
+                                <button type="button" class="btn-mic" id="btn-mic" onclick="toggleVoiceRecording()" title="Click to Speak / Click to Stop" aria-label="Microphone Voice Input">
+                                    <span class="mic-wave-ring"></span>
                                     <span class="mic-icon">🎙️</span>
                                     <span class="mic-label">Speak</span>
                                 </button>
                                 
                                 <div class="text-input-wrapper">
-                                    <input type="text" id="user-input-field" class="form-input" placeholder="Type your answer in your language..." onkeydown="handleInputKey(event)">
-                                    <button type="button" class="btn-send" id="btn-send" onclick="sendMessage()" title="Send Message" aria-label="Send Message">➤</button>
+                                    <input type="text" id="user-input-field" class="form-input" placeholder="Speak or type your answer in your native language..." onkeydown="handleInputKey(event)">
+                                    <button type="button" class="btn-send" id="btn-send" onclick="sendMessage()" title="Send Message" aria-label="Send Message">
+                                        <span>➤</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Recommendation Trigger Bar -->
+                        <!-- Recommendation Trigger Banner -->
                         <div class="recommendation-trigger-bar" id="rec-trigger-bar" hidden>
                             <div class="trigger-info">
-                                <span class="badge badge-success">✓ Profile Captured</span>
-                                <span>Discovery Agent has mapped your core activities.</span>
+                                <span class="badge badge-success">✓ Profile Mapped</span>
+                                <span>Nemotron-3 Discovery Agent has identified your skills and trade tools.</span>
                             </div>
                             <button type="button" class="btn btn-accent btn-large" id="btn-get-rec" onclick="requestRecommendation()">
                                 <span>🎯 Generate NSQF Skilling Pathway</span>
@@ -236,46 +303,49 @@
                     </div>
                 </div>
 
-                <!-- Right Column: Extracted Profile & Grounded Recommendation -->
+                <!-- Right Column: Extracted Profile HUD & Matched NSQF Pathway -->
                 <div class="profile-column">
-                    <!-- Live Extracted Profile Card (Agent 1 Output) -->
+                    
+                    <!-- Live Extracted Work Profile (Agent 1 Output) -->
                     <div class="card profile-card">
                         <div class="card-header-badge">
-                            <h3>📋 Live Work Profile</h3>
-                            <span class="agent-tag">Nemotron-3 Super 120B • Discovery</span>
+                            <div class="profile-header-title">
+                                <h3>📋 Live Work Profile</h3>
+                                <span class="profile-subtitle">Real-time structured extraction from vernacular voice</span>
+                            </div>
+                            <span class="agent-tag">Nemotron-3 • Agent 1</span>
                         </div>
-                        <p class="profile-subtitle">Real-time structured extraction from informal vernacular voice</p>
 
                         <div class="profile-fields-list">
                             <div class="profile-field">
-                                <span class="field-label">Inferred Domain:</span>
+                                <span class="field-label">Inferred Livelihood Domain:</span>
                                 <span class="field-value highlight" id="prof-domain">Awaiting voice input...</span>
                             </div>
                             <div class="profile-field">
-                                <span class="field-label">Daily Activities:</span>
+                                <span class="field-label">Extracted Daily Tasks &amp; Activities:</span>
                                 <div class="field-tags" id="prof-activities">
                                      <span class="tag-empty">None recorded yet</span>
                                 </div>
                             </div>
                             <div class="profile-field">
-                                <span class="field-label">Tools &amp; Equipment:</span>
+                                <span class="field-label">Tools, Machines &amp; Equipment Identified:</span>
                                 <div class="field-tags" id="prof-tools">
                                     <span class="tag-empty">None recorded yet</span>
                                 </div>
                             </div>
                             <div class="profile-field-grid">
-                                <div>
+                                <div class="grid-tile">
                                     <span class="field-label">Frequency:</span>
                                     <span class="field-value" id="prof-freq">-</span>
                                 </div>
-                                <div>
+                                <div class="grid-tile">
                                     <span class="field-label">Experience:</span>
                                     <span class="field-value" id="prof-exp">-</span>
                                 </div>
                             </div>
                             <div class="profile-field comm-field">
                                 <div class="comm-header">
-                                    <span class="field-label">Communication Signal &amp; Confidence:</span>
+                                    <span class="field-label">Communication Signal &amp; Aptitude:</span>
                                     <span class="comm-score-badge" id="prof-comm-score">75%</span>
                                 </div>
                                 <div class="comm-bar-wrapper">
@@ -288,9 +358,12 @@
 
                     <!-- Recommended NSQF Qualification Card (Agent 2 Output) -->
                     <div class="card rec-card" id="rec-result-card" hidden>
+                        <div class="rec-cert-ribbon">
+                            <span>NCVET NSQF ALIGNED PATHWAY</span>
+                        </div>
                         <div class="card-header-badge success">
                             <h3>🎓 Matched NSQF Qualification</h3>
-                            <span class="agent-tag green">Nemotron-3 Super 120B • Grounded RAG</span>
+                            <span class="agent-tag green">Nemotron-3 • Grounded RAG</span>
                         </div>
 
                         <div class="rec-badge-strip">
@@ -311,7 +384,7 @@
                             <div class="gia-benefit-box">
                                 <div class="benefit-item">
                                     <span class="benefit-icon">✅</span>
-                                    <span><strong>100% Free Training:</strong> Zero fee for SC beneficiaries under GIA component.</span>
+                                    <span><strong>100% Free Training:</strong> Zero fees for Scheduled Caste beneficiaries under GIA.</span>
                                 </div>
                                 <div class="benefit-item">
                                     <span class="benefit-icon">🎁</span>
@@ -319,13 +392,13 @@
                                 </div>
                                 <div class="benefit-item">
                                     <span class="benefit-icon">💳</span>
-                                    <span><strong>DBT Conveyance:</strong> Daily stipend paid directly to Aadhaar-linked bank.</span>
+                                    <span><strong>DBT Conveyance Stipend:</strong> Daily allowance paid directly to Aadhaar bank account.</span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="rec-section">
-                            <h5>📖 Core Training Modules:</h5>
+                            <h5>📖 Core Curriculum Modules:</h5>
                             <ul class="modules-list" id="rec-modules"></ul>
                         </div>
 
@@ -352,10 +425,10 @@
 
                         <div class="rec-action-buttons">
                             <button type="button" class="btn btn-passport" onclick="openPassportModal()">
-                                <span>📄 View &amp; Print Livelihood Passport</span>
+                                <span>📄 View &amp; Print Official Livelihood Passport</span>
                             </button>
                             <button type="button" class="btn btn-secondary" onclick="switchTab('mentor-view')">
-                                <span>🔄 Start Weekly Voice Mentorship</span>
+                                <span>🔄 Launch Continuous Weekly Mentorship</span>
                             </button>
                         </div>
                     </div>
@@ -366,8 +439,11 @@
         <!-- ================= TAB 2: CONTINUOUS WEEKLY MENTOR ================= -->
         <section id="mentor-view" class="tab-content" aria-labelledby="mentor-heading">
             <div class="view-header">
-                <h2 id="mentor-heading">🔄 Continuous Voice Mentor (Post-Recommendation Loop)</h2>
-                <p class="view-sub">NARMADA stays with the citizen beyond a one-time form. Automated weekly check-ins track attendance, tool-kit handover, and micro-loan linkage under PM-AJAY.</p>
+                <div class="view-header-badge-row">
+                    <h2 id="mentor-heading">🔄 Continuous Voice Mentor</h2>
+                    <span class="view-badge">Agent 2 Feedback Loop</span>
+                </div>
+                <p class="view-sub">NARMADA stays with the citizen beyond initial recommendation. Automated weekly check-in calls track curriculum attendance, tool kit handover, and micro-loan linkages under PM-AJAY.</p>
             </div>
 
             <div class="mentor-layout">
@@ -377,31 +453,40 @@
                             <div class="step-marker">1</div>
                             <div class="step-info">
                                 <h4>Week 1: Induction &amp; Tool Kit</h4>
-                                <p>Training onboarding, handbook, and safety gear verification.</p>
+                                <p>Training onboarding, curriculum handbook, and safety gear verification.</p>
                             </div>
                         </div>
                         <div class="timeline-step" id="step-w2">
                             <div class="step-marker">2</div>
                             <div class="step-info">
                                 <h4>Week 2: Practical Skills &amp; Stipend</h4>
-                                <p>On-site machinery practice and Aadhaar DBT stipend tracking.</p>
+                                <p>On-site machinery practice and Aadhaar DBT conveyance stipend tracking.</p>
                             </div>
                         </div>
                         <div class="timeline-step" id="step-w3">
                             <div class="step-marker">3</div>
                             <div class="step-info">
-                                <h4>Week 3+: NCVET Certification &amp; IGP Loan</h4>
+                                <h4>Week 3+: NCVET Exam &amp; IGP Loan</h4>
                                 <p>Skill assessment, qualification certificate, and PM-AJAY ₹50,000 enterprise loan.</p>
                             </div>
                         </div>
                     </div>
 
                     <div class="mentor-interactive-box">
-                        <h3>Simulate Weekly Voice Mentorship Check-in</h3>
+                        <div class="mentor-box-header">
+                            <h3>Simulate Automated Voice Mentorship Calls</h3>
+                            <span class="mentor-hint">Click below to simulate proactive weekly voice calls delivered to the citizen's mobile:</span>
+                        </div>
                         <div class="mentor-btn-group">
-                            <button type="button" class="btn btn-mentor" onclick="triggerMentorCheckin(1)">Simulate Week 1 Voice Call</button>
-                            <button type="button" class="btn btn-mentor" onclick="triggerMentorCheckin(2)">Simulate Week 2 Voice Call</button>
-                            <button type="button" class="btn btn-mentor" onclick="triggerMentorCheckin(3)">Simulate Week 3 Milestone</button>
+                            <button type="button" class="btn btn-mentor" onclick="triggerMentorCheckin(1)">
+                                <span>📞 Week 1: Tool Kit &amp; Induction Call</span>
+                            </button>
+                            <button type="button" class="btn btn-mentor" onclick="triggerMentorCheckin(2)">
+                                <span>📞 Week 2: Practical Training &amp; DBT Call</span>
+                            </button>
+                            <button type="button" class="btn btn-mentor" onclick="triggerMentorCheckin(3)">
+                                <span>📞 Week 3: NCVET Exam &amp; Loan Milestone</span>
+                            </button>
                         </div>
 
                         <div class="mentor-audio-output" id="mentor-audio-box" hidden>
@@ -409,14 +494,16 @@
                             <div class="mentor-speech-content">
                                 <h4 id="mentor-week-title">Week 1 Voice Guidance</h4>
                                 <p id="mentor-speech-text">-</p>
-                                <button type="button" class="btn-voice-replay" onclick="replayMentorAudio()">🔊 Replay Mentor Voice</button>
+                                <button type="button" class="btn-voice-replay" onclick="replayMentorAudio()">
+                                    <span>🔊 Replay Voice Message</span>
+                                </button>
                             </div>
                         </div>
 
                         <div class="mentor-history-log" id="mentor-history-log">
-                            <h4>Mentorship Audit History</h4>
+                            <h4>Mentorship Audit Log:</h4>
                             <div class="log-entries" id="mentor-log-entries">
-                                <p class="text-muted">No check-ins simulated yet for this active session.</p>
+                                <p class="text-muted">No check-ins simulated yet for this active session. Click one of the buttons above.</p>
                             </div>
                         </div>
                     </div>
@@ -428,22 +515,33 @@
         <section id="officer-view" class="tab-content" aria-labelledby="officer-heading">
             <div class="view-header flex-between">
                 <div>
-                    <h2 id="officer-heading">🏛️ State Skilling Officer Verification Portal</h2>
+                    <div class="view-header-badge-row">
+                        <h2 id="officer-heading">🏛️ State Skilling Officer Verification Portal</h2>
+                        <span class="view-badge officer">Administrative Oversight</span>
+                    </div>
                     <p class="view-sub">Review AI-grounded livelihood mappings, verify PM-AJAY GIA compliance, and sanction training grants with auditable cryptographic logs.</p>
                 </div>
                 <div class="officer-actions">
-                    <button class="btn btn-outline" onclick="exportBeneficiariesCSV()">📥 Export Registry (CSV)</button>
-                    <button class="btn btn-primary" onclick="loadOfficerData()">🔄 Refresh Review Queue</button>
+                    <span id="officer-auth-status" class="badge badge-warning" style="padding:6px 10px; font-size:0.75rem;">Officer Auth: Required</span>
+                    <button type="button" class="btn btn-outline" id="btn-officer-auth" onclick="openOfficerLoginModal()">
+                        <span>🔑 Officer Login</span>
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="exportBeneficiariesCSV()">
+                        <span>📥 Export Registry (CSV)</span>
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="loadOfficerData()">
+                        <span>🔄 Refresh Review Queue</span>
+                    </button>
                 </div>
             </div>
 
             <!-- Review Queue Filters -->
             <div class="filter-bar">
                 <span class="filter-label">Filter Queue:</span>
-                <button class="filter-chip active" onclick="filterOfficerQueue('all')">All (<span id="count-all">0</span>)</button>
-                <button class="filter-chip" onclick="filterOfficerQueue('active')">Pending Review (<span id="count-pending">0</span>)</button>
-                <button class="filter-chip" onclick="filterOfficerQueue('approved')">Grant Approved (<span id="count-approved">0</span>)</button>
-                <button class="filter-chip" onclick="filterOfficerQueue('flagged')">Flagged for Assessment (<span id="count-flagged">0</span>)</button>
+                <button type="button" class="filter-chip active" onclick="filterOfficerQueue('all')">All (<span id="count-all">0</span>)</button>
+                <button type="button" class="filter-chip" onclick="filterOfficerQueue('active')">Pending Review (<span id="count-pending">0</span>)</button>
+                <button type="button" class="filter-chip" onclick="filterOfficerQueue('approved')">Grant Approved (<span id="count-approved">0</span>)</button>
+                <button type="button" class="filter-chip" onclick="filterOfficerQueue('flagged')">Flagged for Assessment (<span id="count-flagged">0</span>)</button>
             </div>
 
             <!-- Beneficiaries Table -->
@@ -454,9 +552,9 @@
                             <tr>
                                 <th>Beneficiary ID</th>
                                 <th>Language</th>
-                                <th>Extracted Livelihood</th>
+                                <th>Inferred Livelihood</th>
                                 <th>Experience</th>
-                                <th>Communication Clarity</th>
+                                <th>Communication Signal</th>
                                 <th>Matched NSQF Pack</th>
                                 <th>Status</th>
                                 <th>Officer Action</th>
@@ -475,13 +573,16 @@
         <!-- ================= TAB 4: NSQF & SCHEME KNOWLEDGE HUB ================= -->
         <section id="kb-view" class="tab-content" aria-labelledby="kb-heading">
             <div class="view-header">
-                <h2 id="kb-heading">📚 NSQF Qualification Packs &amp; PM-AJAY Knowledge Base</h2>
-                <p class="view-sub">Explore the 25+ verified National Skills Qualifications Framework (NCVET) documents and statutory PM-AJAY GIA guidelines powering NARMADA's Hybrid RAG layer.</p>
+                <div class="view-header-badge-row">
+                    <h2 id="kb-heading">📚 NSQF Qualification Packs &amp; PM-AJAY Knowledge Base</h2>
+                    <span class="view-badge">25 Grounded Records</span>
+                </div>
+                <p class="view-sub">Explore the 22 verified National Skills Qualifications Framework (NCVET) documents and 3 statutory PM-AJAY GIA rules powering NARMADA's Hybrid RAG engine.</p>
             </div>
 
             <div class="kb-search-bar">
-                <input type="text" id="kb-search-input" class="form-input" placeholder="Search by job role, sector, tools (e.g. Dairy, Solar, Sewing, Plumber)..." onkeyup="filterKB()">
-                <select id="kb-sector-filter" class="form-select" onchange="filterKB()">
+                <input type="text" id="kb-search-input" class="form-input" placeholder="Search by job role, sector, tools (e.g. Dairy, Solar, Tailor, Electrician, Plumber)..." onkeyup="filterKB()">
+                <select id="kb-sector-filter" class="form-select" onchange="filterKB()" aria-label="Filter by Sector">
                     <option value="">All Sectors</option>
                     <option value="Agriculture">Agriculture &amp; Allied</option>
                     <option value="Apparel">Apparel &amp; Textiles</option>
@@ -503,30 +604,33 @@
         <!-- ================= TAB 5: NATIONAL IMPACT & METRICS ================= -->
         <section id="impact-view" class="tab-content" aria-labelledby="impact-heading">
             <div class="view-header">
-                <h2 id="impact-heading">📊 National Impact &amp; PM-AJAY FY23–24 Indicators</h2>
-                <p class="view-sub">Real-time platform metrics aligned with official Ministry of Social Justice &amp; Empowerment benchmark targets (SIH26097).</p>
+                <div class="view-header-badge-row">
+                    <h2 id="impact-heading">📊 National Impact &amp; PM-AJAY FY23–24 Indicators</h2>
+                    <span class="view-badge">SIH26097 Metrics</span>
+                </div>
+                <p class="view-sub">Real-time platform performance aligned with official Ministry of Social Justice &amp; Empowerment benchmark targets.</p>
             </div>
 
             <div class="stats-counter-grid">
                 <div class="stat-card">
                     <div class="stat-num" id="stat-active-mapped">0</div>
-                    <div class="stat-desc">Live Citizens Mapped via Voice</div>
-                    <div class="stat-meta">Informal workers profiled</div>
+                    <div class="stat-desc">Live Citizens Mapped</div>
+                    <div class="stat-meta">Informal workers profiled via voice</div>
                 </div>
                 <div class="stat-card accent">
                     <div class="stat-num" id="stat-nsqf-issued">0</div>
                     <div class="stat-desc">NSQF Pathways Recommended</div>
-                    <div class="stat-meta">Grounded RAG matches</div>
+                    <div class="stat-meta">Grounded Nemotron-3 matches</div>
                 </div>
                 <div class="stat-card success">
                     <div class="stat-num" id="stat-grants-approved">0</div>
                     <div class="stat-desc">PM-AJAY GIA Grants Sanctioned</div>
-                    <div class="stat-meta">State officer validated</div>
+                    <div class="stat-meta">Officer verified &amp; approved</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card dpdp">
                     <div class="stat-num" id="stat-dpdp-logs">0</div>
                     <div class="stat-desc">DPDP Act Trust Logs</div>
-                    <div class="stat-meta">Cryptographically sealed</div>
+                    <div class="stat-meta">Cryptographically sealed hashes</div>
                 </div>
             </div>
 
@@ -536,31 +640,34 @@
                     <div class="bench-box">
                         <div class="bench-num">70,934</div>
                         <div class="bench-desc">SC beneficiaries under PM-AJAY GIA skill-development projects</div>
-                        <a href="https://socialjustice.gov.in" target="_blank" class="bench-source">Source: MoSJE Official Portal ↗</a>
+                        <a href="https://socialjustice.gov.in" target="_blank" rel="noopener noreferrer" class="bench-source">Source: MoSJE Official Portal ↗</a>
                     </div>
                     <div class="bench-box">
                         <div class="bench-num">913</div>
                         <div class="bench-desc">Skill-development projects approved under PM-AJAY Grant-in-Aid</div>
-                        <a href="https://socialjustice.gov.in" target="_blank" class="bench-source">Source: MoSJE FY23-24 Report ↗</a>
+                        <a href="https://socialjustice.gov.in" target="_blank" rel="noopener noreferrer" class="bench-source">Source: MoSJE Annual Report ↗</a>
                     </div>
                     <div class="bench-box">
                         <div class="bench-num">30,660</div>
                         <div class="bench-desc">SC persons entered NSQF-compliant certified training</div>
-                        <a href="https://ncvet.gov.in" target="_blank" class="bench-source">Source: NCVET / NSDC Registry ↗</a>
+                        <a href="https://ncvet.gov.in" target="_blank" rel="noopener noreferrer" class="bench-source">Source: NCVET / NSDC Registry ↗</a>
                     </div>
                     <div class="bench-box">
                         <div class="bench-num">201.38M</div>
                         <div class="bench-desc">Scheduled Caste population in India (16.63% national reach target)</div>
-                        <a href="https://censusindia.gov.in" target="_blank" class="bench-source">Source: Census of India ↗</a>
+                        <a href="https://censusindia.gov.in" target="_blank" rel="noopener noreferrer" class="bench-source">Source: Census of India ↗</a>
                     </div>
                 </div>
             </div>
 
-            <!-- Comparative Analysis Table (from Report Page 7 & 8) -->
+            <!-- Comparative Analysis Table -->
             <div class="card table-card mt-4">
                 <div class="card-header-flex">
-                    <h3>🏆 Solution Comparison Matrix</h3>
-                    <span class="badge badge-success">NARMADA Core Differentiation</span>
+                    <div>
+                        <h3>🏆 Architectural Comparison Matrix</h3>
+                        <p class="card-desc">NARMADA vs Existing Digital Platforms</p>
+                    </div>
+                    <span class="badge badge-success">NARMADA Core Advantage</span>
                 </div>
                 <div class="table-responsive">
                     <table class="officer-table">
@@ -575,46 +682,46 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td><strong>Voice-First Interface (No reading/typing)</strong></td>
-                                <td><span class="text-danger">No</span></td>
-                                <td><span class="text-warning">Limited</span></td>
-                                <td><span class="text-success">Yes</span></td>
-                                <td><span class="badge badge-success">Full Indic Voice</span></td>
+                                <td><strong>Voice-First Interface (No reading/typing required)</strong></td>
+                                <td><span class="text-danger">✗ No</span></td>
+                                <td><span class="text-warning">⚠ Limited</span></td>
+                                <td><span class="text-success">✓ Yes</span></td>
+                                <td><span class="badge badge-success">Full Indic Voice (Parakeet ASR)</span></td>
                             </tr>
                             <tr>
-                                <td><strong>Infers Skills from Daily Informal Activity</strong></td>
-                                <td><span class="text-danger">No</span></td>
-                                <td><span class="text-warning">Limited</span></td>
-                                <td><span class="text-danger">No</span></td>
-                                <td><span class="badge badge-success">Agent 1 Extraction</span></td>
+                                <td><strong>Infers Skills from Daily Informal Work Activities</strong></td>
+                                <td><span class="text-danger">✗ No</span></td>
+                                <td><span class="text-warning">⚠ Limited</span></td>
+                                <td><span class="text-danger">✗ No</span></td>
+                                <td><span class="badge badge-success">Agent 1 Extraction (Nemotron-3)</span></td>
                             </tr>
                             <tr>
                                 <td><strong>NSQF-Aligned Qualification Recommendation</strong></td>
-                                <td><span class="text-warning">Limited</span></td>
-                                <td><span class="text-danger">No</span></td>
-                                <td><span class="text-danger">No</span></td>
-                                <td><span class="badge badge-success">Grounded RAG (NCVET)</span></td>
+                                <td><span class="text-warning">⚠ Limited</span></td>
+                                <td><span class="text-danger">✗ No</span></td>
+                                <td><span class="text-danger">✗ No</span></td>
+                                <td><span class="badge badge-success">Grounded RAG (22 NCVET QPs)</span></td>
                             </tr>
                             <tr>
                                 <td><strong>PM-AJAY GIA Eligibility &amp; Grant Linkage</strong></td>
-                                <td><span class="text-warning">Limited</span></td>
-                                <td><span class="text-danger">No</span></td>
-                                <td><span class="text-warning">Limited</span></td>
-                                <td><span class="badge badge-success">Deterministic Rules</span></td>
+                                <td><span class="text-warning">⚠ Limited</span></td>
+                                <td><span class="text-danger">✗ No</span></td>
+                                <td><span class="text-warning">⚠ Limited</span></td>
+                                <td><span class="badge badge-success">Deterministic Rules + ₹15k Tool Kit</span></td>
                             </tr>
                             <tr>
                                 <td><strong>Continuous Weekly Voice Mentoring Loop</strong></td>
-                                <td><span class="text-danger">No</span></td>
-                                <td><span class="text-danger">No</span></td>
-                                <td><span class="text-warning">Limited</span></td>
-                                <td><span class="badge badge-success">Agent 2 Check-in Loop</span></td>
+                                <td><span class="text-danger">✗ No</span></td>
+                                <td><span class="text-danger">✗ No</span></td>
+                                <td><span class="text-warning">⚠ Limited</span></td>
+                                <td><span class="badge badge-success">Agent 2 Continuous Loop</span></td>
                             </tr>
                             <tr>
                                 <td><strong>Communication-Confidence Signal Analysis</strong></td>
-                                <td><span class="text-danger">No</span></td>
-                                <td><span class="text-danger">No</span></td>
-                                <td><span class="text-danger">No</span></td>
-                                <td><span class="badge badge-success">Yes (Aptitude Score)</span></td>
+                                <td><span class="text-danger">✗ No</span></td>
+                                <td><span class="text-danger">✗ No</span></td>
+                                <td><span class="text-danger">✗ No</span></td>
+                                <td><span class="badge badge-success">Yes (Aptitude Score &amp; Clarity)</span></td>
                             </tr>
                         </tbody>
                     </table>
@@ -697,7 +804,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>🔒 DPDP Act 2023 Trust Layer &amp; Compliance</h3>
-                    <button class="btn-close" onclick="closePrivacyModal()">×</button>
+                    <button type="button" class="btn-close" onclick="closePrivacyModal()" aria-label="Close modal">×</button>
                 </div>
                 <div class="modal-body-scroll">
                     <p>NARMADA is engineered from ground up with the Digital Personal Data Protection (DPDP) Act, 2023 requirements:</p>
@@ -722,7 +829,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>🏛️ Review &amp; Grant Approval: <span id="m-bid">PMAJAY-SC-XXXX</span></h3>
-                    <button class="btn-close" onclick="closeOfficerModal()">×</button>
+                    <button type="button" class="btn-close" onclick="closeOfficerModal()" aria-label="Close modal">×</button>
                 </div>
                 <div class="modal-body-scroll">
                     <div class="review-meta-box">
@@ -747,6 +854,36 @@
         </div>
     </div>
 
+    <!-- Modal 4: Officer Authentication Modal -->
+    <div class="modal-backdrop" id="officer-login-modal" hidden>
+        <div class="modal-dialog" style="max-width: 440px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🏛️ State Officer Authentication</h3>
+                    <button type="button" class="btn-close" onclick="closeOfficerLoginModal()" aria-label="Close modal">×</button>
+                </div>
+                <div class="modal-body-scroll" style="padding: 1.5rem;">
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        Authentication is required to inspect beneficiary files and sanction PM-AJAY GIA grants.
+                    </p>
+                    <div class="form-group mb-3">
+                        <label for="officer-username-input"><strong>Officer Username:</strong></label>
+                        <input type="text" id="officer-username-input" class="form-input" placeholder="e.g. officer">
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="officer-password-input"><strong>Password:</strong></label>
+                        <input type="password" id="officer-password-input" class="form-input" placeholder="Enter secure officer password">
+                    </div>
+                    <div id="officer-login-error" class="text-danger" style="font-size: 0.85rem; margin-top: 0.5rem;" hidden></div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-primary" onclick="submitOfficerLogin()">Login &amp; Verify Token</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeOfficerLoginModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer class="app-footer">
         <div class="footer-container">
@@ -758,15 +895,16 @@
             <div class="footer-col">
                 <h4>Government Linkages</h4>
                 <ul class="footer-links">
-                    <li><a href="https://socialjustice.gov.in" target="_blank">Ministry of Social Justice &amp; Empowerment ↗</a></li>
-                    <li><a href="https://ncvet.gov.in" target="_blank">National Council for Vocational Education &amp; Training (NCVET) ↗</a></li>
-                    <li><a href="https://bhashini.gov.in" target="_blank">Digital India Bhashini Mission ↗</a></li>
-                    <li><a href="https://pmmodiyojana.in/pm-ajay-yojana/" target="_blank">PM-AJAY Scheme Guidelines ↗</a></li>
+                    <li><a href="https://socialjustice.gov.in" target="_blank" rel="noopener noreferrer">Ministry of Social Justice &amp; Empowerment ↗</a></li>
+                    <li><a href="https://ncvet.gov.in" target="_blank" rel="noopener noreferrer">National Council for Vocational Education &amp; Training (NCVET) ↗</a></li>
+                    <li><a href="https://bhashini.gov.in" target="_blank" rel="noopener noreferrer">Digital India Bhashini Mission ↗</a></li>
+                    <li><a href="https://pmmodiyojana.in/pm-ajay-yojana/" target="_blank" rel="noopener noreferrer">PM-AJAY Scheme Guidelines ↗</a></li>
                 </ul>
             </div>
             <div class="footer-col">
                 <h4>System Architecture</h4>
                 <p>• Dual-Agent AI (Discovery + Guidance &amp; Mentorship)</p>
+                <p>• NVIDIA Parakeet ASR • Nemotron-3 Super 120B • Riva-Translate-4B</p>
                 <p>• Hybrid RAG (Dense + Token-Weighted Indic Retrieval)</p>
                 <p>• DPDP Act 2023 Trust Layer with SHA-256 Audit Verification</p>
             </div>

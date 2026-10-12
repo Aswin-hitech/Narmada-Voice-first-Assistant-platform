@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Smooth scroll ─────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ─── Custom scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0b1c34;
+}
+::-webkit-scrollbar-thumb {
+  background: #1c437a;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #f37021;
+}
+
+/* ─── Voice pulse ring animation ────────────────────────────────── */
+@keyframes voice-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(243, 112, 33, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 18px rgba(243, 112, 33, 0);
+    transform: scale(1.04);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(243, 112, 33, 0);
+    transform: scale(1);
+  }
+}
+
+.voice-pulse {
+  animation: voice-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes voice-pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.voice-pulse-ring {
+  animation: voice-pulse-ring 1.4s ease-out infinite;
+}
+
+@keyframes waveform-bar {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+.waveform-bar {
+  animation: waveform-bar 0.9s ease-in-out infinite;
+}
+.waveform-bar:nth-child(2) { animation-delay: 0.1s; }
+.waveform-bar:nth-child(3) { animation-delay: 0.2s; }
+.waveform-bar:nth-child(4) { animation-delay: 0.15s; }
+.waveform-bar:nth-child(5) { animation-delay: 0.05s; }
+
+/* ─── Profile field update flash ────────────────────────────────── */
+@keyframes field-update {
+  0% { background-color: rgba(243, 112, 33, 0.25); }
+  100% { background-color: transparent; }
+}
+
+.field-updated {
+  animation: field-update 1.2s ease-out forwards;
+}
+
+/* ─── Fade in animation ──────────────────────────────────────────── */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s ease-out forwards;
+}
+
+/* ─── High contrast mode ─────────────────────────────────────────── */
+.high-contrast {
+  filter: contrast(2) brightness(1.1);
+}
+
+.high-contrast * {
+  border-color: #fff !important;
+}
+
+/* ─── Print styles for Skill Passport ──────────────────────────── */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .passport-print,
+  .passport-print * {
+    visibility: visible;
+  }
+
+  .passport-print {
+    position: fixed;
+    inset: 0;
+    background: white;
+    color: black;
+    padding: 2rem;
+    font-size: 12pt;
+    z-index: 9999;
+  }
+
+  .passport-print .no-print {
+    display: none !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+}
+
+/* ─── Base layer tweaks ──────────────────────────────────────────── */
+@layer base {
+  body {
+    @apply antialiased;
+    font-feature-settings: "kern" 1, "liga" 1;
+  }
+
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-saffron;
+  }
+}
+
+/* ─── Utility: glass card ───────────────────────────────────────── */
+@layer components {
+  .glass-card {
+    @apply bg-navy/60 backdrop-blur-sm border border-navy-light/40 rounded-xl;
+  }
+
+  .btn-saffron {
+    @apply bg-saffron hover:bg-saffron-hover active:bg-saffron-dark text-white font-semibold
+           rounded-lg px-4 py-2 transition-all duration-150 focus-visible:ring-2
+           focus-visible:ring-saffron focus-visible:ring-offset-2 focus-visible:ring-offset-navy-dark;
+  }
+
+  .btn-outline {
+    @apply border border-navy-light/60 text-slate-300 hover:border-saffron hover:text-saffron
+           rounded-lg px-4 py-2 transition-all duration-150;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+}

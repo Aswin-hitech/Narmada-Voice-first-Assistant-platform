@@ -1,0 +1,55 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: narmada
+      POSTGRES_USER: narmada
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-narmada_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U narmada"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://narmada:${DB_PASSWORD:-narmada_secure_password}@db:5432/narmada
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY}
+      NEMOTRON_API_KEY: ${NEMOTRON_API_KEY:-}
+      RIVA_TRANSLATE_API_KEY: ${RIVA_TRANSLATE_API_KEY:-}
+      PARAKEET_API_KEY: ${PARAKEET_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      OFFICER_USERNAME: ${OFFICER_USERNAME:-officer}
+      OFFICER_PASSWORD: ${OFFICER_PASSWORD:-narmada@2026}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./kb.json:/app/kb.json:ro
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+
+volumes:
+  postgres_data:

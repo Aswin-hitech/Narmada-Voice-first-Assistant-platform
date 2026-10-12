@@ -1,0 +1,13 @@
+.env
+*.db
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+venv/
+env/
+node_modules/
+frontend/node_modules/
+*.md
+.pytest_cache/

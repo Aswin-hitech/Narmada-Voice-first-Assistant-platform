@@ -1,10 +1,13 @@
 /**
  * NARMADA - Native-language Aptitude Recognition & Mentoring Architecture
  * Production-Ready Client-Side Controller
+ * MoSJE PM-AJAY (SIH26097)
  */
 
 // Global State
 let currentSessionId = null;
+let currentSessionToken = null;
+let officerAuthToken = localStorage.getItem("narmada_officer_token") || null;
 let currentLanguage = "en-IN";
 let currentProfile = {};
 let currentRecommendation = null;
@@ -49,7 +52,7 @@ const DEMO_PRESETS = {
     }
 };
 
-// ----------------- DOM Helpers -----------------
+// DOM Helper
 const $ = id => document.getElementById(id);
 
 // ----------------- Accessibility & UI Toggles -----------------
@@ -134,7 +137,7 @@ function stopSpeech() {
 function updateAudioSpeed() {
     const select = $("audio-speed-select");
     speechSpeed = parseFloat(select.value) || 1.0;
-    if (window.speechSynthesis.speaking) {
+    if (window.speechSynthesis && window.speechSynthesis.speaking) {
         replayLastSpeech();
     }
 }
@@ -163,10 +166,10 @@ function setupAudioVisualizer(stream) {
             animationFrameId = requestAnimationFrame(draw);
             analyserNode.getByteTimeDomainData(dataArray);
 
-            ctx.fillStyle = "#0f172a";
+            ctx.fillStyle = "#091224";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.lineWidth = 2.5;
-            ctx.strokeStyle = "#e8871e";
+            ctx.strokeStyle = "#f37021";
             ctx.beginPath();
 
             const sliceWidth = canvas.width * 1.0 / bufferLength;
@@ -183,7 +186,7 @@ function setupAudioVisualizer(stream) {
         }
         draw();
     } catch (e) {
-        console.warn("Waveform visualizer not supported or permission denied", e);
+        console.warn("Waveform visualizer notice:", e);
     }
 }
 
@@ -227,13 +230,19 @@ async function startVoiceRecording() {
                                     const formData = new FormData();
                                     formData.append("audio", audioBlob, "speech.webm");
                                     formData.append("lang", $("lang-select").value || "en-IN");
-                                    const res = await fetch("/api/transcribe", { method: "POST", body: formData }).then(r => r.json());
-                                    if (res.transcript && res.transcript.trim()) {
+                                    const resp = await fetch("/api/transcribe", { method: "POST", body: formData });
+                                    const res = await resp.json();
+                                    if (resp.ok && res.transcript && res.transcript.trim()) {
                                         $("user-input-field").value = res.transcript.trim();
                                         sendMessage();
+                                    } else if (!resp.ok) {
+                                        const errMsg = res.detail || res.error || "Speech transcription service unavailable.";
+                                        console.warn("Parakeet ASR response notice:", errMsg);
+                                        appendMessage(`🎙️ Note: ${errMsg}`, "system");
                                     }
                                 } catch (e) {
-                                    console.warn("Parakeet ASR backend transcribe error:", e);
+                                    console.warn("Parakeet ASR transcribe error:", e);
+                                    appendMessage("🎙️ Speech-to-text service is temporarily unavailable. Please type your answer or verify server ASR configuration.", "system");
                                 }
                             }
                         }
@@ -244,7 +253,7 @@ async function startVoiceRecording() {
                 }
             }
         } catch (err) {
-            console.warn("Microphone access error:", err);
+            console.warn("Microphone access notice:", err);
         }
     }
 
@@ -375,28 +384,52 @@ function updateProfileDisplay(prof) {
 
 // ----------------- API Actions -----------------
 async function postJSON(url, data) {
+    const headers = { "Content-Type": "application/json" };
+    if (currentSessionToken) {
+        headers["Authorization"] = `Bearer ${currentSessionToken}`;
+        headers["X-Session-Token"] = currentSessionToken;
+    } else if (officerAuthToken && url.startsWith("/api/officer")) {
+        headers["Authorization"] = `Bearer ${officerAuthToken}`;
+    }
     const response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: headers,
         body: JSON.stringify(data)
     });
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errDetail = `HTTP error! status: ${response.status}`;
+        try {
+            const errJson = await response.json();
+            errDetail = errJson.detail || errJson.error || errDetail;
+        } catch (e) {}
+        throw new Error(errDetail);
     }
     return await response.json();
 }
 
 async function startSession() {
     currentLanguage = $("lang-select").value;
+    
+    // Check explicit DPDP consent checkbox
+    const consentBox = $("user-consent-checkbox");
+    if (consentBox && !consentBox.checked) {
+        alert("Explicit consent is required under DPDP Act 2023. Please check the consent box to proceed.");
+        return;
+    }
+
     const btn = $("btn-start");
     btn.disabled = true;
-    btn.innerHTML = '<span>⏳ Connecting to Discovery Agent...</span>';
+    btn.innerHTML = '<span>⏳ Connecting to Nemotron-3 Discovery Agent...</span>';
 
     try {
-        const res = await postJSON("/api/start", { lang: currentLanguage });
+        const res = await postJSON("/api/start", { lang: currentLanguage, consent: true });
         currentSessionId = res.sid;
+        currentSessionToken = res.session_token;
 
         $("btn-start").hidden = true;
+        const gateBox = $("consent-gate-box");
+        if (gateBox) gateBox.hidden = true;
+        
         $("active-input-row").hidden = false;
         $("chat-stream").innerHTML = "";
 
@@ -407,9 +440,9 @@ async function startSession() {
         loadPendingCount();
     } catch (err) {
         console.error("Failed to start session:", err);
-        appendMessage("Unable to connect to the NARMADA assistant. Please verify your connection.", "system");
+        appendMessage(`Unable to connect: ${err.message}`, "system");
         btn.disabled = false;
-        btn.innerHTML = '<span>🚀 Begin Voice Assistance</span>';
+        btn.innerHTML = '<span class="btn-icon">🚀</span><span>Begin Voice Assistance</span>';
     }
 }
 
@@ -470,7 +503,7 @@ async function requestRecommendation() {
         $("rec-center").textContent = res.nearest_center || "-";
 
         if (res.pm_ajay_benefit) {
-            $("rec-toolkit-text").innerHTML = `<strong>Tool Kit & Grant:</strong> ${res.pm_ajay_benefit}`;
+            $("rec-toolkit-text").innerHTML = `<strong>Tool Kit Subsidy:</strong> ${res.pm_ajay_benefit}`;
         }
 
         // Modules
@@ -618,7 +651,7 @@ function openPassportModal() {
         text: `https://socialjustice.gov.in/pm-ajay/verify?bid=${bid}&hash=${r.audit_hash}&qp=${r.code}`,
         width: 100,
         height: 100,
-        colorDark: "#0f2447",
+        colorDark: "#0b1c34",
         colorLight: "#ffffff",
         correctLevel: QRCode.CorrectLevel.M
     });
@@ -643,18 +676,108 @@ function closePrivacyModal() {
 let officerBeneficiariesList = [];
 let activeOfficerSid = null;
 
+function updateOfficerAuthBadge() {
+    const badge = $("officer-auth-status");
+    const btn = $("btn-officer-auth");
+    if (!badge || !btn) return;
+    if (officerAuthToken) {
+        badge.className = "badge badge-success";
+        badge.style.padding = "6px 10px";
+        badge.textContent = "Officer Auth: Verified";
+        btn.innerHTML = "<span>🚪 Logout</span>";
+        btn.onclick = logoutOfficer;
+    } else {
+        badge.className = "badge badge-warning";
+        badge.style.padding = "6px 10px";
+        badge.textContent = "Officer Auth: Required";
+        btn.innerHTML = "<span>🔑 Officer Login</span>";
+        btn.onclick = openOfficerLoginModal;
+    }
+}
+
+function openOfficerLoginModal() {
+    const err = $("officer-login-error");
+    if (err) err.hidden = true;
+    $("officer-login-modal").hidden = false;
+}
+
+function closeOfficerLoginModal() {
+    $("officer-login-modal").hidden = true;
+}
+
+async function submitOfficerLogin() {
+    const user = ($("officer-username-input").value || "").trim();
+    const pass = ($("officer-password-input").value || "").trim();
+    const errDiv = $("officer-login-error");
+
+    if (!user || !pass) {
+        if (errDiv) {
+            errDiv.textContent = "Please enter both username and password.";
+            errDiv.hidden = false;
+        }
+        return;
+    }
+
+    try {
+        const res = await fetch("/api/officer/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: user, password: pass })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.detail || data.error || "Login failed");
+        }
+
+        officerAuthToken = data.token;
+        localStorage.setItem("narmada_officer_token", data.token);
+        closeOfficerLoginModal();
+        updateOfficerAuthBadge();
+        loadOfficerData();
+    } catch (e) {
+        if (errDiv) {
+            errDiv.textContent = `Login failed: ${e.message}`;
+            errDiv.hidden = false;
+        }
+    }
+}
+
+function logoutOfficer() {
+    officerAuthToken = null;
+    localStorage.removeItem("narmada_officer_token");
+    updateOfficerAuthBadge();
+    const tbody = $("officer-table-body");
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-warning">Officer logged out. Click Officer Login to view registry.</td></tr>';
+}
+
 async function loadOfficerData() {
+    updateOfficerAuthBadge();
     const tbody = $("officer-table-body");
     tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">Refreshing registry from database...</td></tr>';
 
+    if (!officerAuthToken) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><span class="text-warning">⚠️ Officer authentication required.</span> <button class="btn btn-outline" style="padding:4px 10px; margin-left:8px;" onclick="openOfficerLoginModal()">Login as Officer</button></td></tr>';
+        return;
+    }
+
     try {
-        const res = await fetch("/api/officer/beneficiaries").then(r => r.json());
+        const headers = {};
+        if (officerAuthToken) {
+            headers["Authorization"] = `Bearer ${officerAuthToken}`;
+        }
+        const res = await fetch("/api/officer/beneficiaries", { headers }).then(async r => {
+            if (r.status === 401 || r.status === 403) {
+                logoutOfficer();
+                throw new Error("Officer session expired or unauthorized. Please log in again.");
+            }
+            return r.json();
+        });
         officerBeneficiariesList = res.beneficiaries || [];
         renderOfficerTable(officerBeneficiariesList);
         updateOfficerCounts(officerBeneficiariesList);
     } catch (err) {
         console.error("Failed to load officer data:", err);
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-danger">Failed to fetch registry data.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger">${err.message}</td></tr>`;
     }
 }
 
@@ -762,7 +885,7 @@ function exportBeneficiariesCSV() {
         return;
     }
 
-    let csv = "Beneficiary ID,Language,Inferred Livelihood,Experience,Communication Clarity,NSQF Code,Matched Qualification,Status,Officer Notes,Audit Hash\n";
+    let csv = "Beneficiary ID,Language,Inferred Livelihood,Experience,Communication Signal,NSQF Code,Matched Qualification,Status,Officer Notes,Audit Hash\n";
     officerBeneficiariesList.forEach(b => {
         csv += `"${b.beneficiary_id}","${b.lang}","${b.domain}","${b.experience}","${b.communication.replace(/"/g, '""')}","${b.qp_code}","${b.recommended_qp}","${b.status}","${(b.officer_notes||'').replace(/"/g, '""')}","${b.audit_hash}"\n`;
     });

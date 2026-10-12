@@ -1,7 +1,11 @@
 flask
+flask-cors
+flask-limiter
 psycopg2-binary
 openai
 python-dotenv
 gunicorn
 requests
 nvidia-riva-client
+PyJWT
+bcrypt

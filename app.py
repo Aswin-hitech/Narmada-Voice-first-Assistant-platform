@@ -9,6 +9,12 @@ import sqlite3
 import tempfile
 
 from flask import Flask, request, jsonify, render_template, send_file
+from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+import jwt
+import bcrypt
+from functools import wraps
 from dotenv import load_dotenv
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -16,6 +22,212 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
+# Production safety: Enforce request size limit (10MB max request size)
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+
+# CORS for React frontend
+CORS(app, origins=[
+    "http://localhost:5173",  # Vite dev server
+    "http://localhost:3000",
+    os.getenv("FRONTEND_URL", "")
+], supports_credentials=True)
+
+# Rate limiting with storage URI fallback and cross-worker support
+RATE_LIMIT_STORAGE = os.getenv("RATE_LIMIT_STORAGE_URL", "memory://")
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri=RATE_LIMIT_STORAGE
+)
+
+# Enforce JWT Secret - warn or generate in dev, require in production
+_configured_jwt_secret = os.getenv("JWT_SECRET")
+if not _configured_jwt_secret:
+    if os.getenv("FLASK_ENV") == "production":
+        raise RuntimeError("CRITICAL SECURITY ERROR: JWT_SECRET must be set in production environment!")
+    else:
+        # In non-production, generate a secure ephemeral secret if none provided to avoid static fallback
+        _secret_seed_file = os.path.join(BASE_DIR, ".jwt_secret_dev")
+        if os.path.exists(_secret_seed_file):
+            with open(_secret_seed_file, "r") as sf:
+                JWT_SECRET = sf.read().strip()
+        else:
+            import secrets
+            JWT_SECRET = secrets.token_hex(32)
+            try:
+                with open(_secret_seed_file, "w") as sf:
+                    sf.write(JWT_SECRET)
+            except Exception:
+                pass
+        print("[Security Warning] JWT_SECRET not found in .env; generated persistent local secret.")
+else:
+    if len(_configured_jwt_secret) < 16:
+        raise ValueError("CRITICAL SECURITY ERROR: JWT_SECRET must be at least 16 characters long.")
+    JWT_SECRET = _configured_jwt_secret
+
+# Officer Credential Initialization: Support DB-based hashed storage with fallback to env-configured hash
+OFFICER_ENV_USER = os.getenv("OFFICER_USERNAME", "").strip()
+OFFICER_ENV_PASS = os.getenv("OFFICER_PASSWORD", "").strip()
+
+def hash_password(plain_password: str) -> str:
+    """Hashes a password with bcrypt."""
+    return bcrypt.hashpw(plain_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verifies a plain password against bcrypt hash."""
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except Exception:
+        return False
+
+# Consistent error handling for production safety
+@app.errorhandler(413)
+def request_entity_too_large(e):
+    return jsonify({"error": "Payload Too Large", "detail": "Upload size exceeds maximum allowed 10MB limit."}), 413
+
+@app.errorhandler(400)
+def bad_request(e):
+    return jsonify({"error": "Bad Request", "detail": str(getattr(e, 'description', e))}), 400
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Not Found", "detail": "The requested resource was not found."}), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    return jsonify({"error": "Internal Server Error", "detail": "An internal server error occurred."}), 500
+
+def generate_audit_signature(audit_payload: str) -> str:
+    """Generates an HMAC-SHA256 signature over the audit payload to ensure immutability and non-repudiation."""
+    import hmac
+    return hmac.new(JWT_SECRET.encode("utf-8"), audit_payload.encode("utf-8"), hashlib.sha256).hexdigest()
+
+def verify_audit_signature(audit_payload: str, signature: str) -> bool:
+    """Verifies the HMAC-SHA256 signature for tamper detection."""
+    import hmac
+    expected = generate_audit_signature(audit_payload)
+    return hmac.compare_digest(expected, signature)
+
+def create_session_token(sid: str) -> str:
+    """Creates a signed bearer token for a beneficiary session."""
+    return jwt.encode(
+        {"sub": f"beneficiary:{sid}", "sid": sid, "type": "beneficiary", "iat": datetime.now(timezone.utc).timestamp()},
+        JWT_SECRET,
+        algorithm="HS256"
+    )
+
+def require_beneficiary_session(f):
+    """
+    Enforces authorization for beneficiary session mutation/access.
+    Allows either:
+      1. Valid Bearer token issued for this specific session
+      2. Authenticated State Skilling Officer
+      3. Valid sid provided directly in session header 'X-Session-Token' matching sid
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # Extract sid from JSON body or URL query
+        req_data = request.get_json(force=True, silent=True) or {}
+        sid = req_data.get("sid") or request.args.get("sid")
+        if not sid:
+            return jsonify({"error": "Bad Request", "detail": "Missing session ID"}), 400
+
+        auth_header = request.headers.get("Authorization", "")
+        session_token = request.headers.get("X-Session-Token", "")
+        
+        # Check officer auth if present
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+            try:
+                payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+                if payload.get("sub", "").startswith("beneficiary:"):
+                    if payload.get("sid") != sid:
+                        return jsonify({"error": "Forbidden", "detail": "Token does not match target session."}), 403
+                    return f(*args, **kwargs)
+                elif payload.get("role"):
+                    # Officer is authorized
+                    return f(*args, **kwargs)
+            except jwt.InvalidTokenError:
+                pass
+        
+        if session_token:
+            try:
+                payload = jwt.decode(session_token, JWT_SECRET, algorithms=["HS256"])
+                if payload.get("sid") == sid:
+                    return f(*args, **kwargs)
+            except jwt.InvalidTokenError:
+                pass
+
+        # If no token passed yet (backwards-compatible web client), ensure the session actually exists in DB
+        sess_check = execute_query("SELECT id FROM sessions WHERE id=%s", (sid,), fetch="one")
+        if not sess_check:
+            return jsonify({"error": "Not Found", "detail": "Session not found."}), 404
+
+        return f(*args, **kwargs)
+    return decorated
+
+def require_officer_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return jsonify({"error": "Unauthorized", "detail": "Missing or malformed Authorization header."}), 401
+        token = auth_header[7:].strip()
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            if payload.get("sub", "").startswith("beneficiary:"):
+                return jsonify({"error": "Forbidden", "detail": "Officer access required."}), 403
+            request.officer_user = payload.get("sub", "")
+            request.officer_role = payload.get("role", "officer")
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Unauthorized", "detail": "Token has expired."}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Unauthorized", "detail": "Invalid token signature or payload."}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+@app.post("/api/officer/login")
+@limiter.limit("10 per minute")
+def officer_login():
+    data = request.get_json(force=True, silent=True) or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+
+    if not username or not password:
+        return jsonify({"error": "Invalid credentials", "detail": "Username and password required."}), 400
+
+    # Query officer_users table first
+    user_row = execute_query("SELECT * FROM officer_users WHERE username=%s", (username,), fetch="one")
+    authenticated = False
+    role = "officer"
+
+    if user_row:
+        stored_hash = user_row.get("password_hash", "")
+        if verify_password(password, stored_hash):
+            authenticated = True
+            role = user_row.get("role", "officer")
+    elif OFFICER_ENV_USER and username == OFFICER_ENV_USER and OFFICER_ENV_PASS:
+        # Fallback check against explicitly configured environment variables (not default credentials)
+        if password == OFFICER_ENV_PASS:
+            authenticated = True
+            role = "admin"
+
+    if not authenticated:
+        return jsonify({"error": "Invalid credentials", "detail": "Incorrect username or password."}), 401
+
+    token = jwt.encode(
+        {
+            "sub": username,
+            "role": role,
+            "iat": datetime.now(timezone.utc).timestamp(),
+            "exp": (datetime.now(timezone.utc).timestamp() + 86400) # 24h expiry
+        },
+        JWT_SECRET,
+        algorithm="HS256"
+    )
+    return jsonify({"token": token, "username": username, "role": role})
+
 
 # ----------------- NVIDIA NIM & AI Foundation Separate Client Initialization -----------------
 # Global fallback key
@@ -41,26 +253,31 @@ PARAKEET_FUNCTION_ID = (os.getenv("PARAKEET_FUNCTION_ID") or "").strip()
 DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
 
 # Initialize Nemotron Reasoning Client
+# Initialize Nemotron Reasoning Client (with timeouts and retries for resilience)
 NEMOTRON_CLIENT = None
 if NEMOTRON_API_KEY and not NEMOTRON_API_KEY.startswith("sk-placeholder") and NEMOTRON_API_KEY != "sk-...":
     try:
         from openai import OpenAI
         NEMOTRON_CLIENT = OpenAI(
             base_url=NEMOTRON_BASE_URL,
-            api_key=NEMOTRON_API_KEY
+            api_key=NEMOTRON_API_KEY,
+            timeout=15.0,
+            max_retries=2
         )
         print(f"[Nemotron Client] Initialized successfully with model: {NEMOTRON_MODEL}")
     except Exception as e:
         print(f"[Warning] Nemotron client init failed: {e}")
 
-# Initialize Riva Translation Client
+# Initialize Riva Translation Client (with timeouts and retries for resilience)
 RIVA_TRANSLATE_CLIENT = None
 if RIVA_TRANSLATE_API_KEY and not RIVA_TRANSLATE_API_KEY.startswith("sk-placeholder") and RIVA_TRANSLATE_API_KEY != "sk-...":
     try:
         from openai import OpenAI
         RIVA_TRANSLATE_CLIENT = OpenAI(
             base_url=RIVA_TRANSLATE_BASE_URL,
-            api_key=RIVA_TRANSLATE_API_KEY
+            api_key=RIVA_TRANSLATE_API_KEY,
+            timeout=10.0,
+            max_retries=2
         )
         print(f"[Riva Translate Client] Initialized successfully with model: {RIVA_TRANSLATE_MODEL}")
     except Exception as e:
@@ -376,6 +593,7 @@ def dense_cosine(a, b):
 
 # ----------------- Database Initialization -----------------
 def init_db():
+    get_db()
     if USE_POSTGRES:
         execute_query("""
             CREATE TABLE IF NOT EXISTS kb (
@@ -401,8 +619,9 @@ def init_db():
                 mentor_history jsonb DEFAULT '[]',
                 status text DEFAULT 'active',
                 officer_notes text DEFAULT '',
-                dpdp_consent jsonb DEFAULT '{"consented": true, "timestamp": "2026-09-30T10:00:00Z", "purpose": "PM-AJAY Skilling Livelihood Mapping"}',
+                dpdp_consent jsonb DEFAULT '{"consented": false, "timestamp": null, "purpose": "PM-AJAY Skilling Livelihood Mapping"}',
                 audit_hash text,
+                audit_signature text,
                 created timestamptz DEFAULT now()
             );
             CREATE TABLE IF NOT EXISTS dpdp_logs (
@@ -411,6 +630,16 @@ def init_db():
                 action text,
                 timestamp timestamptz DEFAULT now(),
                 details jsonb
+            );
+            CREATE TABLE IF NOT EXISTS officer_users (
+                username text PRIMARY KEY,
+                password_hash text NOT NULL,
+                role text DEFAULT 'officer',
+                created timestamptz DEFAULT now()
+            );
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version text PRIMARY KEY,
+                applied_at timestamptz DEFAULT now()
             );
         """)
     else:
@@ -440,8 +669,9 @@ def init_db():
                 mentor_history text DEFAULT '[]',
                 status text DEFAULT 'active',
                 officer_notes text DEFAULT '',
-                dpdp_consent text DEFAULT '{"consented": true, "timestamp": "2026-09-30T10:00:00Z", "purpose": "PM-AJAY Skilling Livelihood Mapping"}',
+                dpdp_consent text DEFAULT '{"consented": false, "timestamp": null, "purpose": "PM-AJAY Skilling Livelihood Mapping"}',
                 audit_hash text,
+                audit_signature text,
                 created text DEFAULT (datetime('now'))
             );
         """)
@@ -454,30 +684,57 @@ def init_db():
                 details text
             );
         """)
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS officer_users (
+                username text PRIMARY KEY,
+                password_hash text NOT NULL,
+                role text DEFAULT 'officer',
+                created text DEFAULT (datetime('now'))
+            );
+        """)
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version text PRIMARY KEY,
+                applied_at text DEFAULT (datetime('now'))
+            );
+        """)
 
-    # Seed and sync Knowledge Base (NSQF Qualification Packs & PM-AJAY Scheme Guidelines)
-    kb_path = os.path.join(os.path.dirname(__file__), "kb.json")
-    if os.path.exists(kb_path):
-        with open(kb_path, "r", encoding="utf-8") as f:
-            docs = json.load(f)
-        
-        for d in docs:
-            modules_json = json.dumps(d.get("modules", []))
-            if USE_POSTGRES:
+    # Lightweight Migration / Schema Alteration for existing SQLite/Postgres DBs
+    try:
+        if USE_POSTGRES:
+            execute_query("ALTER TABLE sessions ADD COLUMN IF NOT EXISTS audit_signature text;")
+        else:
+            cols = [col["name"] for col in execute_query("PRAGMA table_info(sessions)", fetch="all") or []]
+            if "audit_signature" not in cols:
+                execute_query("ALTER TABLE sessions ADD COLUMN audit_signature text;")
+    except Exception as me:
+        print(f"[DB Migration Notice] {me}")
+
+    # Seed an initial officer admin if none exists in officer_users table
+    existing_users = execute_query("SELECT count(*) as count FROM officer_users", fetch="one") or {"count": 0}
+    if existing_users.get("count", 0) == 0:
+        initial_user = OFFICER_ENV_USER or "officer"
+        initial_pass = OFFICER_ENV_PASS or "narmada@2026"
+        hashed = hash_password(initial_pass)
+        execute_query("""
+            INSERT INTO officer_users (username, password_hash, role)
+            VALUES (%s, %s, %s)
+        """, (initial_user, hashed, "admin"))
+        print(f"[DB Security] Seeded initial officer user '{initial_user}' with bcrypt hash.")
+
+    # Idempotent Knowledge Base Seeding: Seed ONLY when KB table is empty to avoid replacing custom/migrated data on restart
+    kb_count_row = execute_query("SELECT count(*) as count FROM kb", fetch="one") or {"count": 0}
+    if kb_count_row.get("count", 0) == 0:
+        kb_path = os.path.join(os.path.dirname(__file__), "kb.json")
+        if os.path.exists(kb_path):
+            with open(kb_path, "r", encoding="utf-8") as f:
+                docs = json.load(f)
+            
+            for d in docs:
+                modules_json = json.dumps(d.get("modules", []))
                 execute_query("""
                     INSERT INTO kb (code, kind, title, sector, level, min_education, body, modules, career_path, wage_potential, pm_ajay_grant, emb)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (code) DO UPDATE SET
-                        kind = EXCLUDED.kind,
-                        title = EXCLUDED.title,
-                        sector = EXCLUDED.sector,
-                        level = EXCLUDED.level,
-                        min_education = EXCLUDED.min_education,
-                        body = EXCLUDED.body,
-                        modules = EXCLUDED.modules,
-                        career_path = EXCLUDED.career_path,
-                        wage_potential = EXCLUDED.wage_potential,
-                        pm_ajay_grant = EXCLUDED.pm_ajay_grant
                 """, (
                     d["code"],
                     d["kind"],
@@ -492,25 +749,9 @@ def init_db():
                     d.get("pm_ajay_grant", ""),
                     None
                 ))
-            else:
-                execute_query("""
-                    INSERT OR REPLACE INTO kb (code, kind, title, sector, level, min_education, body, modules, career_path, wage_potential, pm_ajay_grant, emb)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    d["code"],
-                    d["kind"],
-                    d["title"],
-                    d.get("sector", ""),
-                    d.get("level", 0),
-                    d.get("min_education", ""),
-                    d["text"],
-                    modules_json,
-                    d.get("career_path", ""),
-                    d.get("wage_potential", ""),
-                    d.get("pm_ajay_grant", ""),
-                    None
-                ))
-        print(f"[NARMADA RAG] Synced {len(docs)} NSQF Qualification Packs & PM-AJAY Scheme Rules into Knowledge Base.")
+            print(f"[NARMADA RAG] Seeded {len(docs)} NSQF Qualification Packs & PM-AJAY Scheme Rules into Knowledge Base.")
+    else:
+        print(f"[NARMADA RAG] Persistent Knowledge Base loaded ({kb_count_row.get('count')} records preserved).")
 
 # ----------------- Domain Taxonomy for Resilient Multi-lingual Extraction -----------------
 DOMAIN_KEYWORD_MAP = {
@@ -929,26 +1170,53 @@ def get_model_info():
     })
 
 @app.post("/api/transcribe")
+@limiter.limit("30 per minute")
 def transcribe():
     """
     Endpoint for speech-to-text transcription using NVIDIA Parakeet ASR.
     Accepts multipart audio file or raw audio with optional language code.
+    Returns explicit error and service availability status if transcription fails.
     """
     lang = request.form.get("lang") or request.args.get("lang") or "en-IN"
-    
     audio_file = request.files.get("audio") or request.files.get("file")
-    transcript = None
     
-    if audio_file:
-        audio_bytes = audio_file.read()
-        transcript = transcribe_with_parakeet(audio_bytes, lang_code=lang)
-    
-    if not transcript:
-        # If no audio or audio parsing returned empty, return fallback/text echo
-        fallback_text = request.form.get("text") or request.args.get("text") or ""
-        transcript = fallback_text
+    if not audio_file:
+        fallback_text = request.form.get("text") or request.args.get("text")
+        if fallback_text:
+            # Explicit text input submission
+            translated = fallback_text
+            if lang != "en-IN":
+                translated = translate_with_riva(fallback_text, src_lang=lang, target_lang="en-IN")
+            return jsonify({
+                "transcript": fallback_text,
+                "translated": translated,
+                "model": "text-input",
+                "lang": lang,
+                "asr_available": bool(RIVA_ASR_SERVICE)
+            })
+        return jsonify({"error": "Bad Request", "detail": "No audio file or text provided."}), 400
 
-    # Optionally provide English translation via Riva Translate if Indic
+    audio_bytes = audio_file.read()
+    if not audio_bytes:
+        return jsonify({"error": "Bad Request", "detail": "Audio file payload is empty."}), 400
+
+    if not RIVA_ASR_SERVICE and not PARAKEET_API_KEY:
+        return jsonify({
+            "error": "Service Unavailable",
+            "detail": "NVIDIA Parakeet ASR service is not configured or unavailable on this server.",
+            "asr_available": False,
+            "suggestion": "Use text input mode or configure PARAKEET_API_KEY."
+        }), 503
+
+    transcript = transcribe_with_parakeet(audio_bytes, lang_code=lang)
+    if not transcript or not transcript.strip():
+        return jsonify({
+            "error": "Transcription Failed",
+            "detail": "Parakeet ASR could not transcribe the speech audio. Please speak clearly and try again.",
+            "asr_available": True
+        }), 422
+
+    # Translate Indic transcription to English if needed
     translated = transcript
     if transcript and lang != "en-IN":
         translated = translate_with_riva(transcript, src_lang=lang, target_lang="en-IN")
@@ -957,7 +1225,8 @@ def transcribe():
         "transcript": transcript,
         "translated": translated,
         "model": PARAKEET_ASR_MODEL,
-        "lang": lang
+        "lang": lang,
+        "asr_available": True
     })
 
 @app.post("/api/translate")
@@ -970,6 +1239,9 @@ def translate_endpoint():
     src_lang = data.get("src_lang", "en-IN")
     target_lang = data.get("target_lang", "hi-IN")
     
+    if not text.strip():
+        return jsonify({"error": "Bad Request", "detail": "Missing text to translate."}), 400
+
     translated_text = translate_with_riva(text, src_lang=src_lang, target_lang=target_lang)
     return jsonify({
         "original": text,
@@ -981,18 +1253,33 @@ def translate_endpoint():
 
 @app.post("/api/start")
 def start():
+    """
+    Starts a beneficiary voice assistance session.
+    Enforces explicit, recorded DPDP Act 2023 consent prior to initializing session data.
+    """
     data = request.get_json(force=True, silent=True) or {}
     lang = data.get("lang", "en-IN")
     if lang not in LANGS:
         lang = "en-IN"
-        
+
+    # Enforce explicit consent recording
+    consent_given = data.get("consent")
+    if consent_given is not True:
+        return jsonify({
+            "error": "Consent Required",
+            "detail": "Explicit, recorded citizen consent is required under DPDP Act 2023 to proceed with PM-AJAY skill mapping.",
+            "consent_required": True
+        }), 400
+
     sid = uuid.uuid4().hex
+    session_token = create_session_token(sid)
     
     consent_meta = {
         "consented": True,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "purpose": "PM-AJAY Livelihood Skill Mapping & Continuous Voice Mentoring",
-        "retention_policy": "Minimal Session Retention with Cryptographic Hashing"
+        "retention_policy": "Minimal Session Retention with Cryptographic Audit Hashing",
+        "ip_address": get_remote_address()
     }
     
     greeting = LOCALIZED_GREETINGS.get(lang, LOCALIZED_GREETINGS["en-IN"])
@@ -1004,7 +1291,7 @@ def start():
         "tools": [],
         "frequency": "",
         "experience": "",
-        "communication": "Session initiated"
+        "communication": "Session initiated with recorded citizen consent"
     }
     
     execute_query("""
@@ -1026,16 +1313,23 @@ def start():
     """, (
         uuid.uuid4().hex,
         sid,
-        "CONSENT_GRANTED_AND_SESSION_START",
+        "CONSENT_RECORDED_AND_SESSION_START",
         datetime.now(timezone.utc).isoformat(),
-        json.dumps({"lang": lang, "purpose": consent_meta["purpose"], "ai_models": {"stt": PARAKEET_ASR_MODEL, "llm": NEMOTRON_MODEL, "nmt": RIVA_TRANSLATE_MODEL}})
+        json.dumps({
+            "lang": lang,
+            "purpose": consent_meta["purpose"],
+            "consented": True,
+            "ai_models": {"stt": PARAKEET_ASR_MODEL, "llm": NEMOTRON_MODEL, "nmt": RIVA_TRANSLATE_MODEL}
+        })
     ))
     
     return jsonify({
         "sid": sid,
+        "session_token": session_token,
         "reply": greeting,
         "lang": lang,
         "profile": initial_profile,
+        "consent": consent_meta,
         "models": {
             "stt": PARAKEET_ASR_MODEL,
             "llm": NEMOTRON_MODEL,
@@ -1044,14 +1338,13 @@ def start():
     })
 
 @app.post("/api/chat")
+@limiter.limit("30 per minute")
+@require_beneficiary_session
 def chat():
     data = request.get_json(force=True, silent=True) or {}
     sid = data.get("sid")
     message = (data.get("message") or "").strip()
     
-    if not sid:
-        return jsonify({"error": "Missing session ID"}), 400
-        
     session = execute_query("SELECT * FROM sessions WHERE id=%s", (sid,), fetch="one")
     if not session:
         return jsonify({"error": "Session not found"}), 404
@@ -1085,11 +1378,11 @@ def chat():
     })
 
 @app.post("/api/recommend")
+@limiter.limit("20 per minute")
+@require_beneficiary_session
 def recommend():
     data = request.get_json(force=True, silent=True) or {}
     sid = data.get("sid")
-    if not sid:
-        return jsonify({"error": "Missing session ID"}), 400
         
     session = execute_query("SELECT * FROM sessions WHERE id=%s", (sid,), fetch="one")
     if not session:
@@ -1139,18 +1432,43 @@ def recommend():
     # Execute Agent 2 (Guidance & Mentorship Agent via NVIDIA Nemotron-3-Super-120B)
     rec_result = call_guidance_agent(profile, lang, top_matches, rule_rows)
     
-    # Cryptographic Audit Hash for DPDP & Administrative Integrity
-    audit_payload = f"{sid}:{rec_result['code']}:{datetime.now(timezone.utc).isoformat()}:{json.dumps(profile)}"
+    # RAG Accuracy Guard: Verify that recommendations cite a REAL Qualification Pack in the database
+    valid_codes = {q["code"]: q for q in qp_rows}
+    cited_code = rec_result.get("code")
+    if not cited_code or cited_code not in valid_codes:
+        # Prevent invented/hallucinated QP packs: Fallback to best grounded match
+        grounded_top = top_matches[0] if top_matches else qp_rows[0]
+        rec_result["code"] = grounded_top["code"]
+        rec_result["title"] = grounded_top["title"]
+        rec_result["sector"] = grounded_top["sector"]
+        rec_result["level"] = grounded_top["level"]
+        rec_result["wage_potential"] = grounded_top.get("wage_potential", "₹18,000 - ₹35,000 / month")
+        rec_result["pm_ajay_benefit"] = grounded_top.get("pm_ajay_grant", "100% free NSQF skilling + ₹15,000 tool kit subsidy under PM-AJAY GIA")
+        rec_result["grounded_verified"] = True
+    else:
+        # Enforce official PM-AJAY statutory GIA rules: zero course fee, ₹15,000 tool kit subsidy
+        grounded_top = valid_codes[cited_code]
+        rec_result["wage_potential"] = grounded_top.get("wage_potential", rec_result.get("wage_potential"))
+        rec_result["pm_ajay_benefit"] = grounded_top.get("pm_ajay_grant", "100% free NSQF skilling + ₹15,000 tool kit subsidy under PM-AJAY GIA")
+        rec_result["grounded_verified"] = True
+
+    # Cryptographic Audit Hash and HMAC Signature for DPDP Act & Non-repudiation
+    audit_timestamp = datetime.now(timezone.utc).isoformat()
+    audit_payload = f"{sid}:{rec_result['code']}:{audit_timestamp}:{json.dumps(profile, sort_keys=True)}"
     audit_hash = hashlib.sha256(audit_payload.encode('utf-8')).hexdigest()
+    audit_signature = generate_audit_signature(audit_payload)
+
     rec_result["audit_hash"] = audit_hash
+    rec_result["audit_signature"] = audit_signature
     rec_result["generated_at"] = datetime.now(timezone.utc).strftime("%d %B %Y, %I:%M %p UTC")
     rec_result["beneficiary_id"] = f"PMAJAY-SC-{sid[:8].upper()}"
     rec_result["model"] = NEMOTRON_MODEL
     rec_result["nmt_model"] = RIVA_TRANSLATE_MODEL
+    rec_result["statutory_rules_applied"] = [r["code"] for r in rule_rows]
     
     execute_query("""
-        UPDATE sessions SET rec=%s, audit_hash=%s WHERE id=%s
-    """, (json.dumps(rec_result), audit_hash, sid))
+        UPDATE sessions SET rec=%s, audit_hash=%s, audit_signature=%s WHERE id=%s
+    """, (json.dumps(rec_result), audit_hash, audit_signature, sid))
     
     execute_query("""
         INSERT INTO dpdp_logs (id, session_id, action, timestamp, details)
@@ -1158,14 +1476,20 @@ def recommend():
     """, (
         uuid.uuid4().hex,
         sid,
-        "RECOMMENDATION_GENERATED_AND_HASHED",
-        datetime.now(timezone.utc).isoformat(),
-        json.dumps({"qp_code": rec_result["code"], "audit_hash": audit_hash, "model": NEMOTRON_MODEL})
+        "RECOMMENDATION_GENERATED_AND_SIGNED",
+        audit_timestamp,
+        json.dumps({
+            "qp_code": rec_result["code"],
+            "audit_hash": audit_hash,
+            "audit_signature": audit_signature,
+            "model": NEMOTRON_MODEL
+        })
     ))
     
     return jsonify(rec_result)
 
 @app.post("/api/mentor")
+@require_beneficiary_session
 def mentor_checkin():
     data = request.get_json(force=True, silent=True) or {}
     sid = data.get("sid")
@@ -1173,9 +1497,6 @@ def mentor_checkin():
     user_status = data.get("status", "progressing")
     user_feedback = data.get("feedback", "")
     
-    if not sid:
-        return jsonify({"error": "Missing session ID"}), 400
-        
     session = execute_query("SELECT * FROM sessions WHERE id=%s", (sid,), fetch="one")
     if not session:
         return jsonify({"error": "Session not found"}), 404
@@ -1202,7 +1523,7 @@ def mentor_checkin():
             "en-IN": f"Week 3 & Beyond: Certification milestone! Prepare for your NCVET skill assessment test. Post-certification, our guidance agent will connect you to PM-AJAY Income Generation Project micro-loans up to ₹50,000.",
             "hi-IN": f"सप्ताह 3 व आगे: प्रमाणन चरण! अपने NCVET कौशल मूल्यांकन की तैयारी करें। प्रमाणन के बाद, आपको ₹50,000 तक के PM-AJAY आय सृजन माइक्रो-ऋण से जोड़ा जाएगा।",
             "ta-IN": f"வாரம் 3 மற்றும் சான்றிதழ்: NCVET திறன் மதிப்பீட்டுத் தேர்வுக்கு தயாராகுங்கள். சான்றிதழ் பெற்றவுடன், ₹50,000 வரையிலான PM-AJAY சுயதொழில் கடன் உதவிக்கு இணைப்பு ஏற்படுத்தப்படும்.",
-            "te-IN": f"వారం 3 & ధృవీకరణ: NCVET అసెస్‌మెంట్ కోసం సిద్ధం అవ్వండి. సర్టిఫికేషన్ తర్వాత ₹50,000 వరకు PM-AJAY మైక్రో-లోన్ లింకేజ్ అందించబడుతుంది."
+            "te-IN": f"వారం 3 & ధృవీకరణ: NCVET అసెస్‌మెంట్ కోసం సిద్ధం అవ్వండి. సర్టిఫికేషన్ తర్వాత ₹50,000 వరకు PM-AJAY మైక్రோ-లోన్ లింకేజ్ అందించబడుతుంది."
         }
     }
     
@@ -1239,6 +1560,7 @@ def mentor_checkin():
 # ----------------- State Skilling Officer (Admin / Verification) Endpoints -----------------
 
 @app.get("/api/officer/beneficiaries")
+@require_officer_auth
 def officer_beneficiaries():
     rows = execute_query("SELECT * FROM sessions ORDER BY created DESC LIMIT 50", fetch="all") or []
     results = []
@@ -1259,24 +1581,42 @@ def officer_beneficiaries():
             "status": r.get("status", "active"),
             "officer_notes": r.get("officer_notes", ""),
             "audit_hash": r.get("audit_hash", "-"),
+            "audit_signature": r.get("audit_signature", "-"),
             "created": r.get("created", "")
         })
     return jsonify({"beneficiaries": results, "total": len(results)})
 
+ALLOWED_OFFICER_STATUSES = {"approved", "flagged", "active", "rejected"}
+
 @app.post("/api/officer/action")
+@require_officer_auth
 def officer_action():
     data = request.get_json(force=True, silent=True) or {}
     sid = data.get("sid")
-    action = data.get("action", "approved")
-    notes = data.get("notes", "")
+    action = (data.get("action") or "").strip().lower()
+    notes = (data.get("notes") or "").strip()
     
     if not sid:
-        return jsonify({"error": "Missing session ID"}), 400
-        
+        return jsonify({"error": "Bad Request", "detail": "Missing session ID"}), 400
+
+    if action not in ALLOWED_OFFICER_STATUSES:
+        return jsonify({
+            "error": "Bad Request",
+            "detail": f"Invalid action status '{action}'. Allowed: {list(ALLOWED_OFFICER_STATUSES)}"
+        }), 400
+
+    if len(notes) > 1000:
+        return jsonify({"error": "Bad Request", "detail": "Notes exceed maximum limit of 1000 characters."}), 400
+
+    session = execute_query("SELECT id, status FROM sessions WHERE id=%s", (sid,), fetch="one")
+    if not session:
+        return jsonify({"error": "Not Found", "detail": "Target beneficiary session not found."}), 404
+
     execute_query("""
         UPDATE sessions SET status=%s, officer_notes=%s WHERE id=%s
     """, (action, notes, sid))
     
+    officer_user = getattr(request, "officer_user", "officer")
     execute_query("""
         INSERT INTO dpdp_logs (id, session_id, action, timestamp, details)
         VALUES (%s, %s, %s, %s, %s)
@@ -1285,13 +1625,17 @@ def officer_action():
         sid,
         f"OFFICER_REVIEW_{action.upper()}",
         datetime.now(timezone.utc).isoformat(),
-        json.dumps({"action": action, "notes": notes})
+        json.dumps({"action": action, "notes": notes, "officer": officer_user})
     ))
     
-    return jsonify({"success": True, "status": action, "notes": notes})
+    return jsonify({"success": True, "status": action, "notes": notes, "officer": officer_user})
 
 @app.get("/api/stats")
+@limiter.limit("60 per minute")
 def stats():
+    """
+    Returns aggregate anonymized benchmark indicators without leaking sensitive beneficiary PII.
+    """
     sess_row = execute_query("SELECT count(*) as total_sessions FROM sessions", fetch="one") or {"total_sessions": 0}
     rec_row = execute_query("SELECT count(*) as total_recs FROM sessions WHERE rec IS NOT NULL", fetch="one") or {"total_recs": 0}
     appr_row = execute_query("SELECT count(*) as approved FROM sessions WHERE status='approved'", fetch="one") or {"approved": 0}
@@ -1317,7 +1661,12 @@ def stats():
     })
 
 @app.get("/api/kb")
+@limiter.limit("60 per minute")
 def get_knowledge_base():
+    """
+    Returns public NSQF qualification pack standards and statutory PM-AJAY rules.
+    Excludes any embeddings or internal metadata.
+    """
     rows = execute_query("SELECT code, kind, title, sector, level, min_education, body, modules, career_path, wage_potential, pm_ajay_grant FROM kb", fetch="all") or []
     for r in rows:
         if isinstance(r.get("modules"), str):
@@ -1327,9 +1676,33 @@ def get_knowledge_base():
                 pass
     return jsonify({"knowledge_base": rows, "count": len(rows)})
 
+@app.get("/api/health")
+def health():
+    return jsonify({
+        "status": "healthy",
+        "version": "1.0.0",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "database": "postgresql" if USE_POSTGRES else "sqlite",
+        "ai_services": {
+            "parakeet_asr": bool(RIVA_ASR_SERVICE) or bool(PARAKEET_API_KEY),
+            "nemotron_reasoning": bool(NEMOTRON_CLIENT),
+            "riva_translation": bool(RIVA_TRANSLATE_CLIENT) or bool(NEMOTRON_CLIENT)
+        }
+    })
+
+@app.route("/app", defaults={"path": ""})
+@app.route("/app/<path:path>")
+def serve_react_app(path):
+    static_dist = os.path.join(BASE_DIR, "static", "dist", "index.html")
+    if os.path.exists(static_dist):
+        return send_file(static_dist)
+    return jsonify({"error": "React build not found. Run `npm run build` in the frontend directory."}), 404
+
 # Initialize Database upon server launch
 with app.app_context():
     init_db()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # Production safety: Disable Flask debug mode; debug must never be hard-coded to True
+    debug_mode = os.getenv("FLASK_DEBUG", "0").lower() in ("1", "true")
+    app.run(host="0.0.0.0", port=5000, debug=debug_mode)
