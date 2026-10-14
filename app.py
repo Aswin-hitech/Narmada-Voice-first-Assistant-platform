@@ -229,6 +229,97 @@ def officer_login():
     return jsonify({"token": token, "username": username, "role": role})
 
 
+@app.post("/api/citizen/register")
+@limiter.limit("5 per minute")
+def citizen_register():
+    data = request.get_json(force=True, silent=True) or {}
+    mobile = data.get("mobile", "").strip()
+    full_name = data.get("full_name", "").strip()
+    password = data.get("password", "").strip()
+    confirm_password = data.get("confirm_password", "").strip()
+    district = data.get("district", "").strip()
+    lang = data.get("lang", "en").strip()
+    occupation = data.get("occupation", "").strip()
+    consent = data.get("consent", False)
+
+    if not mobile or not full_name or not password:
+        return jsonify({"error": "Missing required fields", "detail": "Mobile, name, and password are required."}), 400
+
+    if len(password) < 6:
+        return jsonify({"error": "Password too short", "detail": "Password must be at least 6 characters."}), 400
+
+    if password != confirm_password:
+        return jsonify({"error": "Password mismatch", "detail": "Passwords do not match."}), 400
+
+    if not consent:
+        return jsonify({"error": "Consent required", "detail": "You must accept the privacy policy to continue."}), 400
+
+    existing = execute_query("SELECT mobile FROM citizen_users WHERE mobile=%s", (mobile,), fetch="one")
+    if existing:
+        return jsonify({"error": "Account exists", "detail": "An account with this mobile number already exists."}), 409
+
+    hashed = hash_password(password)
+    consent_meta = {"consented": True, "timestamp": datetime.now(timezone.utc).isoformat(), "purpose": "PM-AJAY Skilling Livelihood Mapping"}
+
+    execute_query("""
+        INSERT INTO citizen_users (mobile, full_name, password_hash, district, lang, occupation, consent)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """, (mobile, full_name, hashed, district, lang, occupation, json.dumps(consent_meta)))
+
+    token = jwt.encode(
+        {
+            "sub": mobile,
+            "role": "citizen",
+            "name": full_name,
+            "iat": datetime.now(timezone.utc).timestamp(),
+            "exp": (datetime.now(timezone.utc).timestamp() + 86400)
+        },
+        JWT_SECRET,
+        algorithm="HS256"
+    )
+    return jsonify({"token": token, "mobile": mobile, "name": full_name, "role": "citizen"}), 201
+
+
+@app.post("/api/citizen/login")
+@limiter.limit("10 per minute")
+def citizen_login():
+    data = request.get_json(force=True, silent=True) or {}
+    mobile = data.get("mobile", "").strip()
+    password = data.get("password", "").strip()
+
+    if not mobile or not password:
+        return jsonify({"error": "Invalid credentials", "detail": "Mobile and password required."}), 400
+
+    user_row = execute_query("SELECT * FROM citizen_users WHERE mobile=%s", (mobile,), fetch="one")
+    if not user_row:
+        return jsonify({"error": "Invalid credentials", "detail": "Incorrect mobile or password."}), 401
+
+    stored_hash = user_row.get("password_hash", "")
+    if not verify_password(password, stored_hash):
+        return jsonify({"error": "Invalid credentials", "detail": "Incorrect mobile or password."}), 401
+
+    token = jwt.encode(
+        {
+            "sub": mobile,
+            "role": "citizen",
+            "name": user_row.get("full_name", ""),
+            "iat": datetime.now(timezone.utc).timestamp(),
+            "exp": (datetime.now(timezone.utc).timestamp() + 86400)
+        },
+        JWT_SECRET,
+        algorithm="HS256"
+    )
+    return jsonify({
+        "token": token,
+        "mobile": mobile,
+        "name": user_row.get("full_name", ""),
+        "role": "citizen",
+        "district": user_row.get("district", ""),
+        "lang": user_row.get("lang", "en"),
+        "occupation": user_row.get("occupation", "")
+    })
+
+
 # ----------------- NVIDIA NIM & AI Foundation Separate Client Initialization -----------------
 # Global fallback key
 NVIDIA_API_KEY = (os.getenv("NVIDIA_API_KEY") or os.getenv("OPENAI_API_KEY") or "").strip()
@@ -637,6 +728,16 @@ def init_db():
                 role text DEFAULT 'officer',
                 created timestamptz DEFAULT now()
             );
+            CREATE TABLE IF NOT EXISTS citizen_users (
+                mobile text PRIMARY KEY,
+                full_name text NOT NULL,
+                password_hash text NOT NULL,
+                district text,
+                lang text DEFAULT 'en',
+                occupation text,
+                consent jsonb DEFAULT '{"consented": false, "timestamp": null}',
+                created timestamptz DEFAULT now()
+            );
             CREATE TABLE IF NOT EXISTS schema_migrations (
                 version text PRIMARY KEY,
                 applied_at timestamptz DEFAULT now()
@@ -689,6 +790,18 @@ def init_db():
                 username text PRIMARY KEY,
                 password_hash text NOT NULL,
                 role text DEFAULT 'officer',
+                created text DEFAULT (datetime('now'))
+            );
+        """)
+        execute_query("""
+            CREATE TABLE IF NOT EXISTS citizen_users (
+                mobile text PRIMARY KEY,
+                full_name text NOT NULL,
+                password_hash text NOT NULL,
+                district text,
+                lang text DEFAULT 'en',
+                occupation text,
+                consent text DEFAULT '{"consented": false, "timestamp": null}',
                 created text DEFAULT (datetime('now'))
             );
         """)
@@ -1134,7 +1247,27 @@ Return STRICT JSON ONLY:
 
 @app.route("/")
 def home():
-    return render_template("index.html", langs=LANGS)
+    return render_template("welcome.html", langs=LANGS)
+
+@app.route("/role-select")
+def role_select():
+    return render_template("role-select.html", langs=LANGS)
+
+@app.route("/signin")
+def signin():
+    return render_template("signin.html", langs=LANGS)
+
+@app.route("/register")
+def register():
+    return render_template("register.html", langs=LANGS)
+
+@app.route("/citizen-dashboard")
+def citizen_dashboard():
+    return render_template("citizen-dashboard.html", langs=LANGS)
+
+@app.route("/officer-dashboard")
+def officer_dashboard():
+    return render_template("officer-dashboard.html", langs=LANGS)
 
 @app.get("/api/models")
 def get_model_info():
@@ -1693,10 +1826,8 @@ def health():
 @app.route("/app", defaults={"path": ""})
 @app.route("/app/<path:path>")
 def serve_react_app(path):
-    static_dist = os.path.join(BASE_DIR, "static", "dist", "index.html")
-    if os.path.exists(static_dist):
-        return send_file(static_dist)
-    return jsonify({"error": "React build not found. Run `npm run build` in the frontend directory."}), 404
+    from flask import redirect
+    return redirect("/")
 
 # Initialize Database upon server launch
 with app.app_context():

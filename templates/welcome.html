@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NARMADA - Discover Your Skills. Find Your Future.</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="welcome-page">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <div class="tricolor-strip" role="presentation">
+        <div class="strip saffron"></div>
+        <div class="strip white"><span class="chakra-icon" aria-hidden="true">&#9752;</span></div>
+        <div class="strip green"></div>
+    </div>
+
+    <header class="welcome-header">
+        <div class="header-container">
+            <div class="brand-block">
+                <div class="brand-emblem" aria-hidden="true">
+                    <div class="emblem-inner">N</div>
+                </div>
+                <div class="brand-titles">
+                    <h1 class="brand-title">NARMADA</h1>
+                    <p class="brand-tagline">Native-language Aptitude Recognition & Mentoring Architecture</p>
+                </div>
+            </div>
+            <div class="lang-selector-wrapper">
+                <label for="lang-select" class="visually-hidden">Select Language</label>
+                <select id="lang-select" class="lang-select" onchange="changeLanguage(this.value)">
+                    <option value="en">English</option>
+                    <option value="hi">Hindi</option>
+                    <option value="ta">Tamil</option>
+                    <option value="te">Telugu</option>
+                    <option value="kn">Kannada</option>
+                    <option value="ml">Malayalam</option>
+                    <option value="mr">Marathi</option>
+                    <option value="bn">Bengali</option>
+                    <option value="gu">Gujarati</option>
+                    <option value="pa">Punjabi</option>
+                    <option value="or">Odia</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main id="main-content" class="welcome-main">
+        <div class="welcome-container">
+            <div class="welcome-hero">
+                <h2 class="welcome-heading" data-i18n="welcome_heading">Discover Your Skills. Find Your Future.</h2>
+                <p class="welcome-description" data-i18n="welcome_description">
+                    NARMADA helps you discover your natural abilities, explore training opportunities, 
+                    and find the right livelihood path - all in your language, through voice and conversation.
+                </p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">&#127908;</div>
+                        <h3 data-i18n="feature_voice_title">Voice-First</h3>
+                        <p data-i18n="feature_voice_desc">Speak in your language, no typing needed</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">&#127891;</div>
+                        <h3 data-i18n="feature_skills_title">Skill Discovery</h3>
+                        <p data-i18n="feature_skills_desc">AI-powered assessment of your abilities</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">&#128218;</div>
+                        <h3 data-i18n="feature_training_title">Training Matches</h3>
+                        <p data-i18n="feature_training_desc">NSQF-certified qualification packs</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">&#128101;</div>
+                        <h3 data-i18n="feature_mentor_title">Voice Mentor</h3>
+                        <p data-i18n="feature_mentor_desc">Weekly guidance and support</p>
+                    </div>
+                </div>
+
+                <div class="welcome-actions">
+                    <button class="btn-primary btn-large" onclick="navigateToRoleSelection()" data-i18n="btn_get_started">
+                        Get Started
+                    </button>
+                    <button class="btn-secondary btn-large" onclick="navigateToSignIn()" data-i18n="btn_sign_in">
+                        Sign In
+                    </button>
+                </div>
+            </div>
+
+            <div class="welcome-info">
+                <div class="info-section">
+                    <h3 data-i18n="info_livelihood_title">Livelihood Mapping</h3>
+                    <p data-i18n="info_livelihood_desc">
+                        Tell us about your daily work, tools you use, and experience. Our AI will help 
+                        identify your skills and match you with relevant training programs.
+                    </p>
+                </div>
+                <div class="info-section">
+                    <h3 data-i18n="info_privacy_title">Privacy & Security</h3>
+                    <p data-i18n="info_privacy_desc">
+                        Your data is protected. We follow DPDP Act guidelines. You control what information 
+                        you share and can delete your account anytime.
+                    </p>
+                </div>
+                <div class="info-section">
+                    <h3 data-i18n="info_accessibility_title">Accessibility</h3>
+                    <p data-i18n="info_accessibility_desc">
+                        Designed for everyone - large buttons, voice assistance, high contrast mode, 
+                        and simple language. Works on mobile and desktop.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="welcome-footer">
+        <div class="footer-container">
+            <div class="footer-section">
+                <h4 data-i18n="footer_about_title">About NARMADA</h4>
+                <p data-i18n="footer_about_desc">
+                    A voice-first AI platform for livelihood mapping and skill development, 
+                    supporting PM-AJAY scheme beneficiaries across India.
+                </p>
+            </div>
+            <div class="footer-section">
+                <h4 data-i18n="footer_support_title">Support</h4>
+                <ul class="footer-links">
+                    <li><a href="#" data-i18n="footer_help">Help & FAQ</a></li>
+                    <li><a href="#" data-i18n="footer_contact">Contact Us</a></li>
+                    <li><a href="#" data-i18n="footer_accessibility">Accessibility</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4 data-i18n="footer_legal_title">Legal</h4>
+                <ul class="footer-links">
+                    <li><a href="#" data-i18n="footer_privacy">Privacy Policy</a></li>
+                    <li><a href="#" data-i18n="footer_terms">Terms of Service</a></li>
+                    <li><a href="#" data-i18n="footer_dpdp">DPDP Notice</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p data-i18n="footer_copyright">NARMADA Platform. Built for public service.</p>
+        </div>
+    </footer>
+
+    <script src="/static/welcome.js"></script>
+</body>
+</html>

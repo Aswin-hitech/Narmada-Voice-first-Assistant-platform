@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NARMADA - Register</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="register-page">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <div class="tricolor-strip" role="presentation">
+        <div class="strip saffron"></div>
+        <div class="strip white"><span class="chakra-icon" aria-hidden="true">&#9752;</span></div>
+        <div class="strip green"></div>
+    </div>
+
+    <header class="simple-header">
+        <div class="header-container">
+            <div class="brand-block">
+                <div class="brand-emblem" aria-hidden="true">
+                    <div class="emblem-inner">N</div>
+                </div>
+                <div class="brand-titles">
+                    <h1 class="brand-title">NARMADA</h1>
+                </div>
+            </div>
+            <button class="btn-back" onclick="goBack()">
+                <span aria-hidden="true">&larr;</span> Back
+            </button>
+        </div>
+    </header>
+
+    <main id="main-content" class="register-main">
+        <div class="register-container">
+            <div class="register-card">
+                <div class="register-header">
+                    <h2 class="register-heading" data-i18n="register_heading">Create Your Account</h2>
+                    <p class="register-description" data-i18n="register_description">
+                        Register to discover your skills and find your future
+                    </p>
+                </div>
+
+                <form id="register-form" class="register-form" onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label for="full_name" data-i18n="label_full_name">Full Name <span class="required">*</span></label>
+                        <input type="text" id="full_name" name="full_name" required 
+                               placeholder="Enter your full name"
+                               aria-describedby="name-help">
+                        <span id="name-help" class="form-help" data-i18n="help_full_name">
+                            As it appears on your official documents
+                        </span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mobile" data-i18n="label_mobile">Mobile Number <span class="required">*</span></label>
+                        <input type="tel" id="mobile" name="mobile" required 
+                               pattern="[0-9]{10}" maxlength="10" 
+                               placeholder="10-digit mobile number"
+                               aria-describedby="mobile-help">
+                        <span id="mobile-help" class="form-help" data-i18n="help_mobile_register">
+                            This will be your login ID
+                        </span>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="password" data-i18n="label_password">Password <span class="required">*</span></label>
+                            <div class="password-wrapper">
+                                <input type="password" id="password" name="password" required 
+                                       minlength="6" placeholder="At least 6 characters"
+                                       aria-describedby="password-help">
+                                <button type="button" class="btn-toggle-password" onclick="togglePassword('password')" aria-label="Show password">
+                                    <span class="password-toggle-icon">&#128065;</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="confirm_password" data-i18n="label_confirm_password">Confirm Password <span class="required">*</span></label>
+                            <div class="password-wrapper">
+                                <input type="password" id="confirm_password" name="confirm_password" required 
+                                       minlength="6" placeholder="Re-enter password"
+                                       aria-describedby="confirm-help">
+                                <button type="button" class="btn-toggle-password" onclick="togglePassword('confirm_password')" aria-label="Show password">
+                                    <span class="password-toggle-icon">&#128065;</span>
+                                </button>
+                            </div>
+                            <span id="confirm-help" class="form-help" data-i18n="help_confirm_password">
+                                Must match the password above
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="district" data-i18n="label_district">District</label>
+                            <input type="text" id="district" name="district" 
+                                   placeholder="Your district"
+                                   aria-describedby="district-help">
+                            <span id="district-help" class="form-help" data-i18n="help_district">
+                                Optional - helps match local training
+                            </span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="lang" data-i18n="label_language">Preferred Language</label>
+                            <select id="lang" name="lang" aria-describedby="lang-help">
+                                <option value="en">English</option>
+                                <option value="hi">Hindi</option>
+                                <option value="ta">Tamil</option>
+                                <option value="te">Telugu</option>
+                                <option value="kn">Kannada</option>
+                                <option value="ml">Malayalam</option>
+                                <option value="mr">Marathi</option>
+                                <option value="bn">Bengali</option>
+                                <option value="gu">Gujarati</option>
+                                <option value="pa">Punjabi</option>
+                                <option value="or">Odia</option>
+                            </select>
+                            <span id="lang-help" class="form-help" data-i18n="help_language">
+                                We'll communicate in this language
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="occupation" data-i18n="label_occupation">Current Occupation / Work</label>
+                        <input type="text" id="occupation" name="occupation" 
+                               placeholder="What do you do currently?"
+                               aria-describedby="occupation-help">
+                        <span id="occupation-help" class="form-help" data-i18n="help_occupation">
+                            Optional - helps us understand your background
+                        </span>
+                    </div>
+
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="consent" name="consent" required 
+                                   aria-describedby="consent-help">
+                            <span class="checkbox-text" data-i18n="consent_text">
+                                I consent to share my information for skill assessment and training recommendations. 
+                                I understand my data is protected under DPDP Act and I can delete my account anytime.
+                                <span class="required">*</span>
+                            </span>
+                        </label>
+                        <span id="consent-help" class="form-help" data-i18n="consent_help">
+                            You must accept to continue
+                        </span>
+                    </div>
+
+                    <div id="error-message" class="error-message" style="display:none;" role="alert"></div>
+
+                    <button type="submit" class="btn-primary btn-large btn-full" id="submit-btn" data-i18n="btn_register">
+                        Create Account
+                    </button>
+
+                    <div class="register-footer">
+                        <span data-i18n="have_account">Already have an account?</span>
+                        <a href="/signin?role=citizen" data-i18n="signin_link">Sign in here</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/register.js"></script>
+</body>
+</html>

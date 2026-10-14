@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NARMADA - Sign In</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="signin-page">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <div class="tricolor-strip" role="presentation">
+        <div class="strip saffron"></div>
+        <div class="strip white"><span class="chakra-icon" aria-hidden="true">&#9752;</span></div>
+        <div class="strip green"></div>
+    </div>
+
+    <header class="simple-header">
+        <div class="header-container">
+            <div class="brand-block">
+                <div class="brand-emblem" aria-hidden="true">
+                    <div class="emblem-inner">N</div>
+                </div>
+                <div class="brand-titles">
+                    <h1 class="brand-title">NARMADA</h1>
+                </div>
+            </div>
+            <button class="btn-back" onclick="goBack()">
+                <span aria-hidden="true">&larr;</span> Back
+            </button>
+        </div>
+    </header>
+
+    <main id="main-content" class="signin-main">
+        <div class="signin-container">
+            <div class="signin-card">
+                <div class="signin-header">
+                    <div class="role-badge" id="role-badge">
+                        <span id="role-icon">&#128100;</span>
+                        <span id="role-label">Citizen</span>
+                    </div>
+                    <h2 class="signin-heading" data-i18n="signin_heading">Sign In to NARMADA</h2>
+                    <p class="signin-description" data-i18n="signin_description">
+                        Enter your credentials to access your account
+                    </p>
+                </div>
+
+                <form id="signin-form" class="signin-form" onsubmit="handleSignIn(event)">
+                    <div class="form-group" id="mobile-group">
+                        <label for="mobile" data-i18n="label_mobile">Mobile Number</label>
+                        <input type="tel" id="mobile" name="mobile" required 
+                               pattern="[0-9]{10}" maxlength="10" 
+                               placeholder="10-digit mobile number"
+                               aria-describedby="mobile-help">
+                        <span id="mobile-help" class="form-help" data-i18n="help_mobile">
+                            Enter your registered 10-digit mobile number
+                        </span>
+                    </div>
+
+                    <div class="form-group" id="username-group" style="display:none;">
+                        <label for="username" data-i18n="label_username">Username</label>
+                        <input type="text" id="username" name="username" 
+                               placeholder="Enter your username"
+                               aria-describedby="username-help">
+                        <span id="username-help" class="form-help" data-i18n="help_username">
+                            Enter your officer username
+                        </span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password" data-i18n="label_password">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" id="password" name="password" required 
+                                   minlength="6" placeholder="Enter your password"
+                                   aria-describedby="password-help">
+                            <button type="button" class="btn-toggle-password" onclick="togglePassword()" aria-label="Show password">
+                                <span id="password-toggle-icon">&#128065;</span>
+                            </button>
+                        </div>
+                        <span id="password-help" class="form-help" data-i18n="help_password">
+                            Password must be at least 6 characters
+                        </span>
+                    </div>
+
+                    <div id="error-message" class="error-message" style="display:none;" role="alert"></div>
+
+                    <button type="submit" class="btn-primary btn-large btn-full" id="submit-btn" data-i18n="btn_sign_in">
+                        Sign In
+                    </button>
+
+                    <div class="signin-footer">
+                        <span id="citizen-register-link">
+                            <span data-i18n="no_account">Don't have an account?</span>
+                            <a href="/register" data-i18n="register_link">Register here</a>
+                        </span>
+                        <span id="officer-forgot-link" style="display:none;">
+                            <a href="#" data-i18n="forgot_password">Forgot password?</a>
+                        </span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/signin.js"></script>
+</body>
+</html>

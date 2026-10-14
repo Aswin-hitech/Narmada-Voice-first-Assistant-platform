@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NARMADA - Officer Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <div class="tricolor-strip" role="presentation">
+        <div class="strip saffron"></div>
+        <div class="strip white"><span class="chakra-icon" aria-hidden="true">&#9752;</span></div>
+        <div class="strip green"></div>
+    </div>
+
+    <header class="dashboard-header">
+        <div class="header-container">
+            <div class="brand-block">
+                <div class="brand-emblem" aria-hidden="true">
+                    <div class="emblem-inner">N</div>
+                </div>
+                <div class="brand-titles">
+                    <h1 class="brand-title">NARMADA</h1>
+                    <p class="brand-tagline">Officer Dashboard</p>
+                </div>
+            </div>
+            <div class="user-controls">
+                <div class="user-info">
+                    <span class="user-icon">&#128188;</span>
+                    <span id="officer-name" class="user-name">Loading...</span>
+                    <span class="role-badge">Officer</span>
+                </div>
+                <button class="btn-logout" onclick="handleLogout()">
+                    <span aria-hidden="true">&#128682;</span> Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main id="main-content" class="dashboard-main">
+        <div class="dashboard-container">
+            <!-- Welcome Section -->
+            <div class="welcome-section">
+                <h2>Officer Portal</h2>
+                <p>Review beneficiary assessments and manage verification tasks</p>
+            </div>
+
+            <!-- Stats Overview -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">&#128101;</div>
+                    <div class="stat-info">
+                        <h3 id="stat-total">0</h3>
+                        <p>Total Beneficiaries</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">&#9203;</div>
+                    <div class="stat-info">
+                        <h3 id="stat-pending">0</h3>
+                        <p>Pending Review</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">&#10004;</div>
+                    <div class="stat-info">
+                        <h3 id="stat-approved">0</h3>
+                        <p>Approved</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">&#128202;</div>
+                    <div class="stat-info">
+                        <h3 id="stat-recommendations">0</h3>
+                        <p>Recommendations Made</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Beneficiary Review Section -->
+            <div class="review-section">
+                <div class="section-header">
+                    <h2>Beneficiary Review Queue</h2>
+                    <div class="review-controls">
+                        <input type="text" id="search-input" class="search-input" placeholder="Search by name or mobile..." oninput="filterBeneficiaries()">
+                        <select id="status-filter" class="status-filter" onchange="filterBeneficiaries()">
+                            <option value="all">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="flagged">Flagged</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                        <button class="btn-secondary" onclick="exportCSV()">Export CSV</button>
+                    </div>
+                </div>
+
+                <div id="beneficiaries-list" class="beneficiaries-list">
+                    <div class="loading-state">
+                        <p>Loading beneficiaries...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Beneficiary Detail Modal -->
+    <div class="modal-backdrop" id="beneficiary-modal" hidden>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Beneficiary Details</h3>
+                <button class="btn-close" onclick="closeBeneficiaryModal()" aria-label="Close modal">&times;</button>
+            </div>
+            <div class="modal-body" id="beneficiary-modal-body">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeBeneficiaryModal()">Cancel</button>
+                <button class="btn-danger" onclick="rejectBeneficiary()">Reject</button>
+                <button class="btn-warning" onclick="flagBeneficiary()">Flag for Review</button>
+                <button class="btn-primary" onclick="approveBeneficiary()">Approve</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/officer-dashboard.js"></script>
+</body>
+</html>

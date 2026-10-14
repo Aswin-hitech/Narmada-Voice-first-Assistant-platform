@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NARMADA - Citizen Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dashboard-page">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <div class="tricolor-strip" role="presentation">
+        <div class="strip saffron"></div>
+        <div class="strip white"><span class="chakra-icon" aria-hidden="true">&#9752;</span></div>
+        <div class="strip green"></div>
+    </div>
+
+    <header class="dashboard-header">
+        <div class="header-container">
+            <div class="brand-block">
+                <div class="brand-emblem" aria-hidden="true">
+                    <div class="emblem-inner">N</div>
+                </div>
+                <div class="brand-titles">
+                    <h1 class="brand-title">NARMADA</h1>
+                    <p class="brand-tagline">Citizen Dashboard</p>
+                </div>
+            </div>
+            <div class="user-controls">
+                <div class="user-info">
+                    <span class="user-icon">&#128100;</span>
+                    <span id="user-name" class="user-name">Loading...</span>
+                </div>
+                <button class="btn-logout" onclick="handleLogout()">
+                    <span aria-hidden="true">&#128682;</span> Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main id="main-content" class="dashboard-main">
+        <div class="dashboard-container">
+            <!-- Welcome Section -->
+            <div class="welcome-section">
+                <h2 id="welcome-heading">Welcome to NARMADA</h2>
+                <p id="welcome-subheading">Discover your skills and find your future</p>
+            </div>
+
+            <!-- Navigation Cards -->
+            <div class="nav-cards-grid">
+                <div class="nav-card" onclick="showSection('profile')" tabindex="0" role="button">
+                    <div class="nav-card-icon">&#128100;</div>
+                    <h3>My Profile</h3>
+                    <p>View and update your information</p>
+                </div>
+                <div class="nav-card active" onclick="showSection('discover')" tabindex="0" role="button">
+                    <div class="nav-card-icon">&#127908;</div>
+                    <h3>Discover My Skills</h3>
+                    <p>Voice and text conversation about your abilities</p>
+                </div>
+                <div class="nav-card" onclick="showSection('recommendations')" tabindex="0" role="button">
+                    <div class="nav-card-icon">&#127891;</div>
+                    <h3>My Recommendations</h3>
+                    <p>NSQF training programs matched to your skills</p>
+                </div>
+                <div class="nav-card" onclick="showSection('progress')" tabindex="0" role="button">
+                    <div class="nav-card-icon">&#128200;</div>
+                    <h3>My Progress</h3>
+                    <p>Track your assessment and mentoring history</p>
+                </div>
+                <div class="nav-card" onclick="showSection('mentor')" tabindex="0" role="button">
+                    <div class="nav-card-icon">&#128101;</div>
+                    <h3>Voice Mentor</h3>
+                    <p>Weekly guidance and support</p>
+                </div>
+                <div class="nav-card" onclick="showSection('passport')" tabindex="0" role="button">
+                    <div class="nav-card-icon">&#128196;</div>
+                    <h3>Livelihood Passport</h3>
+                    <p>Your verified skill credentials</p>
+                </div>
+                <div class="nav-card" onclick="showSection('settings')" tabindex="0" role="button">
+                    <div class="nav-card-icon">&#9881;</div>
+                    <h3>Settings</h3>
+                    <p>Language, accessibility, and privacy</p>
+                </div>
+            </div>
+
+            <!-- Content Sections -->
+            <div class="content-sections">
+                <!-- Profile Section -->
+                <section id="profile-section" class="content-section" style="display:none;">
+                    <div class="section-header">
+                        <h2>My Profile</h2>
+                        <button class="btn-secondary" onclick="editProfile()">Edit Profile</button>
+                    </div>
+                    <div class="profile-card">
+                        <div class="profile-info">
+                            <div class="profile-field">
+                                <label>Full Name</label>
+                                <p id="profile-name">-</p>
+                            </div>
+                            <div class="profile-field">
+                                <label>Mobile Number</label>
+                                <p id="profile-mobile">-</p>
+                            </div>
+                            <div class="profile-field">
+                                <label>District</label>
+                                <p id="profile-district">-</p>
+                            </div>
+                            <div class="profile-field">
+                                <label>Preferred Language</label>
+                                <p id="profile-lang">-</p>
+                            </div>
+                            <div class="profile-field">
+                                <label>Occupation</label>
+                                <p id="profile-occupation">-</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Discover Skills Section -->
+                <section id="discover-section" class="content-section active">
+                    <div class="section-header">
+                        <h2>Discover My Skills</h2>
+                        <p class="section-desc">Tell us about your daily work, tools you use, and experience</p>
+                    </div>
+                    
+                    <div class="chat-container">
+                        <div id="chat-messages" class="chat-messages">
+                            <div class="message bot-message">
+                                <div class="message-content">
+                                    <strong>NARMADA Assistant:</strong>
+                                    <p>Hello! I'm here to help you discover your skills. Tell me about your daily work - what do you do, what tools do you use, and how long have you been doing it?</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="chat-input-container">
+                            <button class="btn-mic" id="mic-btn" onclick="toggleVoice()" aria-label="Start voice recording">
+                                <span id="mic-icon">&#127908;</span>
+                            </button>
+                            <input type="text" id="chat-input" class="chat-input" placeholder="Type your message or click the microphone..." onkeypress="handleChatKeypress(event)">
+                            <button class="btn-send" onclick="sendMessage()" aria-label="Send message">
+                                <span>&#10148;</span>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Recommendations Section -->
+                <section id="recommendations-section" class="content-section" style="display:none;">
+                    <div class="section-header">
+                        <h2>My Recommendations</h2>
+                        <button class="btn-primary" onclick="generateRecommendations()">Generate Recommendations</button>
+                    </div>
+                    <div id="recommendations-content" class="recommendations-content">
+                        <div class="empty-state">
+                            <div class="empty-icon">&#127891;</div>
+                            <h3>No recommendations yet</h3>
+                            <p>Complete your skill discovery conversation first, then generate personalized training recommendations.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Progress Section -->
+                <section id="progress-section" class="content-section" style="display:none;">
+                    <div class="section-header">
+                        <h2>My Progress</h2>
+                    </div>
+                    <div id="progress-content" class="progress-content">
+                        <div class="empty-state">
+                            <div class="empty-icon">&#128200;</div>
+                            <h3>No progress yet</h3>
+                            <p>Start your skill discovery journey to see your progress here.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Mentor Section -->
+                <section id="mentor-section" class="content-section" style="display:none;">
+                    <div class="section-header">
+                        <h2>Voice Mentor</h2>
+                    </div>
+                    <div id="mentor-content" class="mentor-content">
+                        <div class="empty-state">
+                            <div class="empty-icon">&#128101;</div>
+                            <h3>Weekly mentoring coming soon</h3>
+                            <p>After completing your skill assessment, you'll receive weekly voice mentoring sessions.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Passport Section -->
+                <section id="passport-section" class="content-section" style="display:none;">
+                    <div class="section-header">
+                        <h2>Livelihood Passport</h2>
+                    </div>
+                    <div id="passport-content" class="passport-content">
+                        <div class="empty-state">
+                            <div class="empty-icon">&#128196;</div>
+                            <h3>Passport not ready yet</h3>
+                            <p>Complete your skill assessment and receive recommendations to generate your Livelihood Passport.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Settings Section -->
+                <section id="settings-section" class="content-section" style="display:none;">
+                    <div class="section-header">
+                        <h2>Settings</h2>
+                    </div>
+                    <div class="settings-card">
+                        <div class="setting-item">
+                            <label for="settings-lang">Language</label>
+                            <select id="settings-lang" onchange="changeLanguage(this.value)">
+                                <option value="en">English</option>
+                                <option value="hi">Hindi</option>
+                                <option value="ta">Tamil</option>
+                                <option value="te">Telugu</option>
+                                <option value="kn">Kannada</option>
+                                <option value="ml">Malayalam</option>
+                                <option value="mr">Marathi</option>
+                                <option value="bn">Bengali</option>
+                                <option value="gu">Gujarati</option>
+                                <option value="pa">Punjabi</option>
+                                <option value="or">Odia</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <label>Accessibility</label>
+                            <div class="accessibility-options">
+                                <button class="btn-secondary" onclick="adjustFontSize(-1)">A-</button>
+                                <button class="btn-secondary" onclick="adjustFontSize(0)">A</button>
+                                <button class="btn-secondary" onclick="adjustFontSize(1)">A+</button>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label>Privacy</label>
+                            <p>Your data is protected under DPDP Act 2023. You can delete your account anytime.</p>
+                            <button class="btn-danger" onclick="deleteAccount()">Delete My Account</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/citizen-dashboard.js"></script>
+</body>
+</html>

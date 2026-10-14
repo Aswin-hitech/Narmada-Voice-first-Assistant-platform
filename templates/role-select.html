@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NARMADA - Select Your Role</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="role-select-page">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <div class="tricolor-strip" role="presentation">
+        <div class="strip saffron"></div>
+        <div class="strip white"><span class="chakra-icon" aria-hidden="true">&#9752;</span></div>
+        <div class="strip green"></div>
+    </div>
+
+    <header class="simple-header">
+        <div class="header-container">
+            <div class="brand-block">
+                <div class="brand-emblem" aria-hidden="true">
+                    <div class="emblem-inner">N</div>
+                </div>
+                <div class="brand-titles">
+                    <h1 class="brand-title">NARMADA</h1>
+                </div>
+            </div>
+            <button class="btn-back" onclick="goBack()">
+                <span aria-hidden="true">&larr;</span> Back
+            </button>
+        </div>
+    </header>
+
+    <main id="main-content" class="role-select-main">
+        <div class="role-select-container">
+            <h2 class="role-select-heading" data-i18n="role_select_heading">How will you use NARMADA?</h2>
+            <p class="role-select-description" data-i18n="role_select_description">
+                Choose your role to continue. You can change this later.
+            </p>
+
+            <div class="role-cards">
+                <div class="role-card" onclick="selectRole('citizen')" tabindex="0" role="button" aria-label="Continue as Citizen">
+                    <div class="role-icon">&#128100;</div>
+                    <h3 class="role-title" data-i18n="role_citizen_title">Citizen / Beneficiary</h3>
+                    <p class="role-description" data-i18n="role_citizen_desc">
+                        Discover your skills, explore training opportunities, and receive guidance in your language.
+                    </p>
+                    <button class="btn-primary" data-i18n="role_citizen_btn">Continue as Citizen</button>
+                </div>
+
+                <div class="role-card" onclick="selectRole('officer')" tabindex="0" role="button" aria-label="Continue as Officer">
+                    <div class="role-icon">&#128188;</div>
+                    <h3 class="role-title" data-i18n="role_officer_title">Government Officer</h3>
+                    <p class="role-description" data-i18n="role_officer_desc">
+                        Review beneficiary assessments and manage authorized verification tasks.
+                    </p>
+                    <button class="btn-secondary" data-i18n="role_officer_btn">Continue as Officer</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/role-select.js"></script>
+</body>
+</html>
